@@ -152,6 +152,11 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 		p.history.Clear()
 	case Up, ControlP:
 		if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
+			if p.renderer.reverseSearchEnabled {
+				offsetCnt := strings.Count(p.history.lastReverseFinded, "\n") + 1
+				p.history.lastReverseFinded = ""
+				p.turnOffReverseSearch(offsetCnt)
+			}
 
 			// if this is a multiline buffer and the cursor is not at the top line,
 			// then we just move up the cursor
@@ -168,6 +173,11 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 		}
 	case Down, ControlN:
 		if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
+			if p.renderer.reverseSearchEnabled {
+				offsetCnt := strings.Count(p.history.lastReverseFinded, "\n") + 1
+				p.history.lastReverseFinded = ""
+				p.turnOffReverseSearch(offsetCnt)
+			}
 
 			// if this is a multiline buffer and the cursor is not at the top line,
 			// then we just move up the cursor
