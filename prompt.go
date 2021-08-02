@@ -3,6 +3,7 @@ package prompt
 import (
 	"bytes"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/c-bata/go-prompt/internal/debug"
@@ -60,7 +61,7 @@ func (p *Prompt) Run() {
 		p.completion.Update(*p.buf.Document())
 	}
 
-	p.renderer.Render(p.buf, p.prevText, p.completion)
+	p.renderer.Render(p.buf, p.prevText, p.completion, p.history)
 
 	bufCh := make(chan []byte, 128)
 	stopReadBufCh := make(chan struct{})
@@ -91,7 +92,7 @@ func (p *Prompt) Run() {
 
 				p.completion.Update(*p.buf.Document())
 
-				p.renderer.Render(p.buf, p.prevText, p.completion)
+				p.renderer.Render(p.buf, p.prevText, p.completion, p.history)
 
 				if p.exitChecker != nil && p.exitChecker(e.input, true) {
 					p.skipTearDown = true
@@ -103,11 +104,11 @@ func (p *Prompt) Run() {
 				go p.handleSignals(exitCh, winSizeCh, stopHandleSignalCh)
 			} else {
 				p.completion.Update(*p.buf.Document())
-				p.renderer.Render(p.buf, p.prevText, p.completion)
+				p.renderer.Render(p.buf, p.prevText, p.completion, p.history)
 			}
 		case w := <-winSizeCh:
 			p.renderer.UpdateWinSize(w)
-			p.renderer.Render(p.buf, p.prevText, p.completion)
+			p.renderer.Render(p.buf, p.prevText, p.completion, p.history)
 		case code := <-exitCh:
 			p.renderer.BreakLine(p.buf)
 			p.tearDown()
@@ -129,14 +130,23 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 
 	switch key {
 	case Enter, ControlJ, ControlM:
-		p.renderer.BreakLine(p.buf)
+		if p.renderer.reverseSearchEnabled {
+			p.turnOffReverseSearch(1)
+		}
 
+		p.renderer.BreakLine(p.buf)
 		exec = &Exec{input: p.buf.Text()}
 		p.buf = NewBuffer()
 		if exec.input != "" {
 			p.history.Add(exec.input)
 		}
 	case ControlC:
+		if p.renderer.reverseSearchEnabled {
+			offsetCnt := strings.Count(p.history.lastReverseFinded, "\n") + 1
+			p.history.lastReverseFinded = ""
+			p.turnOffReverseSearch(offsetCnt)
+		}
+
 		p.renderer.BreakLine(p.buf)
 		p.buf = NewBuffer()
 		p.history.Clear()
@@ -178,6 +188,12 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 		if p.buf.Text() == "" {
 			shouldExit = true
 			return
+		}
+	case ControlR:
+		if !p.renderer.reverseSearchEnabled {
+			p.renderer.reverseSearchEnabled = true
+		} else {
+			p.history.reverseSearchIndex++
 		}
 	case NotDefined:
 		if p.handleASCIICodeBinding(b) {
@@ -269,7 +285,7 @@ func (p *Prompt) Input() string {
 		p.completion.Update(*p.buf.Document())
 	}
 
-	p.renderer.Render(p.buf, p.prevText, p.completion)
+	p.renderer.Render(p.buf, p.prevText, p.completion, p.history)
 	bufCh := make(chan []byte, 128)
 	stopReadBufCh := make(chan struct{})
 	go p.readBuffer(bufCh, stopReadBufCh)
@@ -287,7 +303,7 @@ func (p *Prompt) Input() string {
 				return e.input
 			} else {
 				p.completion.Update(*p.buf.Document())
-				p.renderer.Render(p.buf, p.prevText, p.completion)
+				p.renderer.Render(p.buf, p.prevText, p.completion, p.history)
 			}
 		default:
 			time.Sleep(10 * time.Millisecond)
@@ -322,4 +338,20 @@ func (p *Prompt) tearDown() {
 		debug.AssertNoError(p.in.TearDown())
 	}
 	p.renderer.TearDown()
+}
+
+func (p *Prompt) turnOffReverseSearch(eraseLinesCnt int) {
+	for i := 0; i < eraseLinesCnt; i++ {
+		p.renderer.out.CursorUp(1)
+		p.renderer.out.EraseLine()
+	}
+
+	p.renderer.out.CursorBackward(maxBackwardColumn)
+
+	p.buf = NewBuffer()
+	p.buf.setText(p.history.lastReverseFinded)
+
+	p.renderer.reverseSearchEnabled = false
+	p.renderer.searchPrefixIsSet = false
+	p.history.lastReverseFinded = ""
 }
