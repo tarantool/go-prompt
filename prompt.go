@@ -151,13 +151,10 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 		p.buf = NewBuffer()
 		p.history.Clear()
 	case Up, ControlP:
-		if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
-			if p.renderer.reverseSearchEnabled {
-				offsetCnt := strings.Count(p.history.lastReverseFinded, "\n") + 1
-				p.history.lastReverseFinded = ""
-				p.turnOffReverseSearch(offsetCnt)
-			}
-
+		if p.renderer.reverseSearchEnabled {
+			offsetCnt := strings.Count(p.history.lastReverseFinded, "\n") + 1
+			p.turnOffReverseSearch(offsetCnt)
+		} else if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
 			// if this is a multiline buffer and the cursor is not at the top line,
 			// then we just move up the cursor
 			if p.buf.NewLineCount() > 0 && p.buf.Document().CursorPositionRow() > 0 {
@@ -168,17 +165,12 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 				p.prevText = p.buf.Text()
 				p.buf = newBuf
 			}
-
-			return
 		}
 	case Down, ControlN:
-		if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
-			if p.renderer.reverseSearchEnabled {
-				offsetCnt := strings.Count(p.history.lastReverseFinded, "\n") + 1
-				p.history.lastReverseFinded = ""
-				p.turnOffReverseSearch(offsetCnt)
-			}
-
+		if p.renderer.reverseSearchEnabled {
+			offsetCnt := strings.Count(p.history.lastReverseFinded, "\n") + 1
+			p.turnOffReverseSearch(offsetCnt)
+		} else if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
 			// if this is a multiline buffer and the cursor is not at the top line,
 			// then we just move up the cursor
 			// debug.Log(fmt.Sprintln("NewLineCount:", p.buf.NewLineCount()))
@@ -192,7 +184,11 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 				p.prevText = p.buf.Text()
 				p.buf = newBuf
 			}
-			return
+		}
+	case Left, Right:
+		if p.renderer.reverseSearchEnabled {
+			offsetCnt := strings.Count(p.history.lastReverseFinded, "\n") + 1
+			p.turnOffReverseSearch(offsetCnt)
 		}
 	case ControlD:
 		if p.buf.Text() == "" {
