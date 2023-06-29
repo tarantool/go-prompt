@@ -51,6 +51,11 @@ func (h *History) Newer(buf *Buffer) (new *Buffer, changed bool) {
 	return new, true
 }
 
+// SetCurrentCmd sets current command.
+func (h *History) SetCurrentCmd(cmd string) {
+	h.tmp[h.selected] = cmd
+}
+
 // NewHistory returns new history object.
 func NewHistory() *History {
 	return &History{

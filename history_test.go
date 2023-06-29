@@ -3,6 +3,8 @@ package prompt
 import (
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHistoryClear(t *testing.T) {
@@ -59,4 +61,15 @@ func TestHistoryOlder(t *testing.T) {
 	if !reflect.DeepEqual("echo 1", buf2.Text()) {
 		t.Errorf("Should be %#v, but got %#v", "echo 1", buf2.Text())
 	}
+}
+
+func TestHistorySetCurrent(t *testing.T) {
+	history := NewHistory()
+	history.Add("entry0")
+	history.Add("entry1")
+	history.Add("entry2")
+
+	newCmd := "alternative"
+	history.SetCurrentCmd(newCmd)
+	assert.Equal(t, newCmd, history.tmp[history.selected])
 }
