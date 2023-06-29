@@ -44,7 +44,7 @@ func (d *Document) DisplayCursorPosition() int {
 	return position
 }
 
-// GetCharRelativeToCursor return character relative to cursor position, or empty string
+// GetCharRelativeToCursor return character relative to cursor position, or empty string.
 func (d *Document) GetCharRelativeToCursor(offset int) (r rune) {
 	s := d.Text
 	cnt := 0
@@ -87,14 +87,14 @@ func (d *Document) GetWordAfterCursor() string {
 }
 
 // GetWordBeforeCursorWithSpace returns the word before the cursor.
-// Unlike GetWordBeforeCursor, it returns string containing space
+// Unlike GetWordBeforeCursor, it returns string containing space.
 func (d *Document) GetWordBeforeCursorWithSpace() string {
 	x := d.TextBeforeCursor()
 	return x[d.FindStartOfPreviousWordWithSpace():]
 }
 
 // GetWordAfterCursorWithSpace returns the word after the cursor.
-// Unlike GetWordAfterCursor, it returns string containing space
+// Unlike GetWordAfterCursor, it returns string containing space.
 func (d *Document) GetWordAfterCursorWithSpace() string {
 	x := d.TextAfterCursor()
 	return x[:d.FindEndOfCurrentWordWithSpace()]
@@ -113,14 +113,14 @@ func (d *Document) GetWordAfterCursorUntilSeparator(sep string) string {
 }
 
 // GetWordBeforeCursorUntilSeparatorIgnoreNextToCursor returns the word before the cursor.
-// Unlike GetWordBeforeCursor, it returns string containing space
+// Unlike GetWordBeforeCursor, it returns string containing space.
 func (d *Document) GetWordBeforeCursorUntilSeparatorIgnoreNextToCursor(sep string) string {
 	x := d.TextBeforeCursor()
 	return x[d.FindStartOfPreviousWordUntilSeparatorIgnoreNextToCursor(sep):]
 }
 
 // GetWordAfterCursorUntilSeparatorIgnoreNextToCursor returns the word after the cursor.
-// Unlike GetWordAfterCursor, it returns string containing space
+// Unlike GetWordAfterCursor, it returns string containing space.
 func (d *Document) GetWordAfterCursorUntilSeparatorIgnoreNextToCursor(sep string) string {
 	x := d.TextAfterCursor()
 	return x[:d.FindEndOfCurrentWordUntilSeparatorIgnoreNextToCursor(sep)]
@@ -265,7 +265,7 @@ func (d *Document) CurrentLineAfterCursor() string {
 }
 
 // CurrentLine return the text on the line where the cursor is. (when the input
-// consists of just one line, it equals `text`.
+// consists of just one line, it equals `text`).
 func (d *Document) CurrentLine() string {
 	return d.CurrentLineBeforeCursor() + d.CurrentLineAfterCursor()
 }
@@ -305,20 +305,48 @@ func (d *Document) findLineStartIndex(index int) (pos int, lineStartIndex int) {
 	return
 }
 
+// getCursorIndex returns an index that points exactly
+// after the rune at the current cursor position.
+func (d *Document) getCursorIndex() int {
+	index := 0
+	runes := []rune(d.Text)
+	for i := 0; i < d.cursorPosition; i++ {
+		index += utf8.RuneLen(runes[i])
+	}
+	return index
+}
+
 // CursorPositionRow returns the current row. (0-based.)
 func (d *Document) CursorPositionRow() (row int) {
-	row, _ = d.findLineStartIndex(d.cursorPosition)
+	row, _ = d.findLineStartIndex(d.getCursorIndex())
 	return
 }
 
 // CursorPositionCol returns the current column. (0-based.)
 func (d *Document) CursorPositionCol() (col int) {
-	// Don't use self.text_before_cursor to calculate this. Creating substrings
-	// and splitting is too expensive for getting the cursor position.
 	defer debug.Un(debug.Trace("CursorPositionCol"))
-	_, index := d.findLineStartIndex(d.cursorPosition)
-	col = d.cursorPosition - index
+	indexAfterCursor := d.getCursorIndex()
+	_, index := d.findLineStartIndex(indexAfterCursor)
+	col = len([]rune(d.Text[index:indexAfterCursor]))
 	return
+}
+
+// GetCursorPosition returns position of the current cursor.
+func (d *Document) GetCursorPosition() (row, col int) {
+	indexAfterCursor := d.getCursorIndex()
+	row, index := d.findLineStartIndex(indexAfterCursor)
+	col = len([]rune(d.Text[index:indexAfterCursor]))
+	return
+}
+
+// GetCustomCursorPosition returns position of custom cursor in the document.
+func (d *Document) GetCustomCursorPosition(cursor int) (row, col int) {
+	oldCursorPosition := d.cursorPosition
+	defer func() {
+		d.cursorPosition = oldCursorPosition
+	}()
+	d.cursorPosition = cursor
+	return d.GetCursorPosition()
 }
 
 // GetCursorLeftPosition returns the relative position for cursor left.
@@ -337,10 +365,11 @@ func (d *Document) GetCursorRightPosition(count int) int {
 	if count < 0 {
 		return d.GetCursorLeftPosition(-count)
 	}
-	if len(d.CurrentLineAfterCursor()) > count {
-		return count
+	currentLineAfterCursor := []rune(d.CurrentLineAfterCursor())
+	if count > len(currentLineAfterCursor) {
+		count = len(currentLineAfterCursor)
 	}
-	return len(d.CurrentLineAfterCursor())
+	return count
 }
 
 // GetCursorUpPosition return the relative cursor position (character index) where we would be
@@ -358,7 +387,7 @@ func (d *Document) GetCursorUpPosition(count int, preferredColumn int) int {
 	if row < 0 {
 		row = 0
 	}
-	return d.TranslateRowColToIndex(row, col) - d.cursorPosition
+	return d.TranslateRowColToCursor(row, col) - d.cursorPosition
 }
 
 // GetCursorDownPosition return the relative cursor position (character index) where we would be if the
@@ -371,7 +400,7 @@ func (d *Document) GetCursorDownPosition(count int, preferredColumn int) int {
 		col = preferredColumn
 	}
 	row := d.CursorPositionRow() + count
-	return d.TranslateRowColToIndex(row, col) - d.cursorPosition
+	return d.TranslateRowColToCursor(row, col) - d.cursorPosition
 }
 
 // Lines returns the array of all the lines.
@@ -426,6 +455,30 @@ func (d *Document) TranslateRowColToIndex(row int, column int) (index int) {
 		index = 0
 	}
 	return index
+}
+
+// TranslateRowColToCursor given a (row, col), return the corresponding cursor.
+// (Row and col params are 0-based.)
+func (d *Document) TranslateRowColToCursor(row int, column int) (index int) {
+	lines := d.Lines()
+	if row > len(lines) {
+		row = len(lines)
+	}
+	for i := 0; i < row; i++ {
+		index += len([]rune(lines[i]))
+		if i+1 < len(lines) {
+			// Consider '\n'.
+			index++
+		}
+	}
+	if row < len(lines) {
+		runesOnLine := len([]rune(lines[row]))
+		if column > runesOnLine {
+			column = runesOnLine
+		}
+		index += column
+	}
+	return
 }
 
 // OnLastLine returns true when we are at the last line.

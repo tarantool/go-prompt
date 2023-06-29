@@ -2,9 +2,10 @@ package prompt
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 	"unicode/utf8"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func ExampleDocument_CurrentLine() {
@@ -1030,41 +1031,134 @@ func TestDocument_FindEndOfCurrentWordWithSpace(t *testing.T) {
 }
 
 func TestDocument_CurrentLineBeforeCursor(t *testing.T) {
-	d := &Document{
-		Text:           "line 1\nline 2\nline 3\nline 4\n",
-		cursorPosition: len("line 1\n" + "lin"),
+	cases := []struct {
+		document *Document
+		expected string
+	}{
+		{
+			document: &Document{
+				Text:           "line 1\nline 2\nline 3\nline 4\n",
+				cursorPosition: len("line 1\n" + "lin"),
+			},
+			expected: "lin",
+		},
+		{
+			document: &Document{
+				Text:           "желание # ржавый",
+				cursorPosition: 10,
+			},
+			expected: "желание # ",
+		},
+		{
+			document: &Document{
+				Text:           "семнадцать\nрассвет\nпечь",
+				cursorPosition: 23,
+			},
+			expected: "печь",
+		},
+		{
+			document: &Document{
+				Text:           "",
+				cursorPosition: 0,
+			},
+			expected: "",
+		},
 	}
-	ac := d.CurrentLineBeforeCursor()
-	ex := "lin"
-	if ac != ex {
-		t.Errorf("Should be %#v, got %#v", ex, ac)
+	for _, tc := range cases {
+		t.Run(tc.document.Text, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.document.CurrentLineBeforeCursor())
+		})
 	}
 }
 
 func TestDocument_CurrentLineAfterCursor(t *testing.T) {
-	d := &Document{
-		Text:           "line 1\nline 2\nline 3\nline 4\n",
-		cursorPosition: len("line 1\n" + "lin"),
+	cases := []struct {
+		document *Document
+		expected string
+	}{
+		{
+			document: &Document{
+				Text:           "line 1\nline 2\nline 3\nline 4\n",
+				cursorPosition: len("line 1\n" + "lin"),
+			},
+			expected: "e 2",
+		},
+		{
+			document: &Document{
+				Text:           "желание # ржавый",
+				cursorPosition: 10,
+			},
+			expected: "ржавый",
+		},
+		{
+			document: &Document{
+				Text:           "семнадцать\nрассвет\nпечь",
+				cursorPosition: 12,
+			},
+			expected: "ассвет",
+		},
+		{
+			document: &Document{
+				Text:           "зеленый\nкрасный\nсиний",
+				cursorPosition: 2,
+			},
+			expected: "леный",
+		},
+		{
+			document: &Document{
+				Text:           "",
+				cursorPosition: 0,
+			},
+			expected: "",
+		},
 	}
-	ac := d.CurrentLineAfterCursor()
-	ex := "e 2"
-	if ac != ex {
-		t.Errorf("Should be %#v, got %#v", ex, ac)
+	for _, tc := range cases {
+		t.Run(tc.document.Text, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.document.CurrentLineAfterCursor())
+		})
 	}
 }
 
 func TestDocument_CurrentLine(t *testing.T) {
-	d := &Document{
-		Text:           "line 1\nline 2\nline 3\nline 4\n",
-		cursorPosition: len("line 1\n" + "lin"),
+	cases := []struct {
+		document *Document
+		expected string
+	}{
+		{
+			document: &Document{
+				Text:           "line 1\nline 2\nline 3\nline 4\n",
+				cursorPosition: len("line 1\n" + "lin"),
+			},
+			expected: "line 2",
+		},
+		{
+			document: &Document{
+				Text:           "желание # ржавый",
+				cursorPosition: 10,
+			},
+			expected: "желание # ржавый",
+		},
+		{
+			document: &Document{
+				Text:           "семнадцать\nрассвет\nпечь",
+				cursorPosition: 12,
+			},
+			expected: "рассвет",
+		},
+		{
+			document: &Document{
+				Text:           "",
+				cursorPosition: 0,
+			},
+			expected: "",
+		},
 	}
-	ac := d.CurrentLine()
-	ex := "line 2"
-	if ac != ex {
-		t.Errorf("Should be %#v, got %#v", ex, ac)
+	for _, tc := range cases {
+		t.Run(tc.document.Text, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.document.CurrentLine())
+		})
 	}
 }
-
 func TestDocument_CursorPositionRowAndCol(t *testing.T) {
 	var cursorPositionTests = []struct {
 		document    *Document
@@ -1081,86 +1175,177 @@ func TestDocument_CursorPositionRowAndCol(t *testing.T) {
 			expectedRow: 0,
 			expectedCol: 0,
 		},
+		{
+			document: &Document{
+				Text:           "Однострочник",
+				cursorPosition: 12,
+			},
+			expectedRow: 0,
+			expectedCol: 12,
+		},
+		{
+			document: &Document{
+				Text:           "Документ\nСтрока",
+				cursorPosition: 10, // `т`
+			},
+			expectedRow: 1,
+			expectedCol: 1,
+		},
 	}
 	for _, test := range cursorPositionTests {
 		ac := test.document.CursorPositionRow()
-		if ac != test.expectedRow {
-			t.Errorf("Should be %#v, got %#v", test.expectedRow, ac)
-		}
+		assert.Equal(t, test.expectedRow, ac)
 		ac = test.document.CursorPositionCol()
-		if ac != test.expectedCol {
-			t.Errorf("Should be %#v, got %#v", test.expectedCol, ac)
-		}
+		assert.Equal(t, test.expectedCol, ac)
 	}
 }
 
 func TestDocument_GetCursorLeftPosition(t *testing.T) {
-	d := &Document{
-		Text:           "line 1\nline 2\nline 3\nline 4\n",
-		cursorPosition: len("line 1\n" + "line 2\n" + "lin"),
+	cases := []struct {
+		document *Document
+		shift    []int
+		expected []int
+	}{
+		{
+			document: &Document{
+				Text:           "line 1\nline 2\nline 3\nline 4\n",
+				cursorPosition: len("line 1\n" + "line 2\n" + "lin"),
+			},
+			shift:    []int{2, 10},
+			expected: []int{-2, -3},
+		},
+		{
+			document: &Document{
+				Text:           "зеленый\nкрасный\nсиний",
+				cursorPosition: 18, // `н`
+			},
+			shift:    []int{1, 7},
+			expected: []int{-1, -2},
+		},
+		{
+			document: &Document{
+				Text:           "",
+				cursorPosition: 0,
+			},
+			shift:    []int{5},
+			expected: []int{0},
+		},
 	}
-	ac := d.GetCursorLeftPosition(2)
-	ex := -2
-	if ac != ex {
-		t.Errorf("Should be %#v, got %#v", ex, ac)
-	}
-	ac = d.GetCursorLeftPosition(10)
-	ex = -3
-	if ac != ex {
-		t.Errorf("Should be %#v, got %#v", ex, ac)
+	for _, tc := range cases {
+		for i, sh := range tc.shift {
+			ac := tc.document.GetCursorLeftPosition(sh)
+			assert.Equal(t, tc.expected[i], ac)
+		}
 	}
 }
 
 func TestDocument_GetCursorUpPosition(t *testing.T) {
-	d := &Document{
-		Text:           "line 1\nline 2\nline 3\nline 4\n",
-		cursorPosition: len("line 1\n" + "line 2\n" + "lin"),
-	}
-	ac := d.GetCursorUpPosition(2, -1)
-	ex := len("lin") - len("line 1\n"+"line 2\n"+"lin")
-	if ac != ex {
-		t.Errorf("Should be %#v, got %#v", ex, ac)
+	cases := []struct {
+		document *Document
+		shift    []int
+		column   []int
+		expected []int
+	}{
+		{
+			document: &Document{
+				Text:           "line 1\nline 2\nline 3\nline 4\n",
+				cursorPosition: len("line 1\n" + "line 2\n" + "lin"),
+			},
+			shift:    []int{2, 100, 2},
+			column:   []int{-1, -1, 0},
+			expected: []int{-14, -14, -17},
+		},
+		{
+			document: &Document{
+				Text:           "зеленый\nкрасный\nсиний",
+				cursorPosition: 18, // `н`
+			},
+			shift:    []int{1, 1, 2, 3},
+			column:   []int{-1, 0, 2, 0},
+			expected: []int{-8, -10, -16, -18},
+		},
 	}
 
-	ac = d.GetCursorUpPosition(100, -1)
-	ex = len("lin") - len("line 1\n"+"line 2\n"+"lin")
-	if ac != ex {
-		t.Errorf("Should be %#v, got %#v", ex, ac)
+	for _, tc := range cases {
+		for i, sh := range tc.shift {
+			ac := tc.document.GetCursorUpPosition(sh, tc.column[i])
+			assert.Equal(t, tc.expected[i], ac)
+		}
 	}
 }
-
 func TestDocument_GetCursorDownPosition(t *testing.T) {
-	d := &Document{
-		Text:           "line 1\nline 2\nline 3\nline 4\n",
-		cursorPosition: len("lin"),
-	}
-	ac := d.GetCursorDownPosition(2, -1)
-	ex := len("line 1\n"+"line 2\n"+"lin") - len("lin")
-	if ac != ex {
-		t.Errorf("Should be %#v, got %#v", ex, ac)
+	cases := []struct {
+		document *Document
+		shift    []int
+		column   []int
+		expected []int
+	}{
+		{
+			document: &Document{
+				Text:           "line 1\nline 2\nline 3\nline 4\n",
+				cursorPosition: len("lin"),
+			},
+			shift:    []int{2, 100, 3, 2},
+			column:   []int{-1, -1, 2, 4},
+			expected: []int{14, 25, 20, 15},
+		},
+		{
+			document: &Document{
+				Text:           "зеленый\nкрасный\nсиний",
+				cursorPosition: 2, // `л`
+			},
+			shift:    []int{1, 1, 2, 3, 4},
+			column:   []int{-1, 0, 2, 0, -1},
+			expected: []int{8, 6, 16, 19, 19},
+		},
 	}
 
-	ac = d.GetCursorDownPosition(100, -1)
-	ex = len("line 1\n"+"line 2\n"+"line 3\n"+"line 4\n") - len("lin")
-	if ac != ex {
-		t.Errorf("Should be %#v, got %#v", ex, ac)
+	for _, tc := range cases {
+		for i, sh := range tc.shift {
+			ac := tc.document.GetCursorDownPosition(sh, tc.column[i])
+			assert.Equal(t, tc.expected[i], ac)
+		}
 	}
+
 }
 
 func TestDocument_GetCursorRightPosition(t *testing.T) {
-	d := &Document{
-		Text:           "line 1\nline 2\nline 3\nline 4\n",
-		cursorPosition: len("line 1\n" + "line 2\n" + "lin"),
+	cases := []struct {
+		document *Document
+		shift    []int
+		expected []int
+	}{
+		{
+			document: &Document{
+				Text:           "line 1\nline 2\nline 3\nline 4\n",
+				cursorPosition: len("line 1\n" + "line 2\n" + "lin"),
+			},
+			shift:    []int{2, 10, 3, 2},
+			expected: []int{2, 3, 3, 2},
+		},
+		{
+			document: &Document{
+				Text:           "зеленый\nкрасный\nсиний",
+				cursorPosition: 2, // `л`
+			},
+			shift:    []int{1, 5, 9},
+			expected: []int{1, 5, 5},
+		},
+		{
+			document: &Document{
+				Text:           "зеленый\nкрасный\nсиний",
+				cursorPosition: 8, // `к`
+			},
+			shift:    []int{-1, 3, 8},
+			expected: []int{0, 3, 7},
+		},
 	}
-	ac := d.GetCursorRightPosition(2)
-	ex := 2
-	if ac != ex {
-		t.Errorf("Should be %#v, got %#v", ex, ac)
-	}
-	ac = d.GetCursorRightPosition(10)
-	ex = 3
-	if ac != ex {
-		t.Errorf("Should be %#v, got %#v", ex, ac)
+
+	for _, tc := range cases {
+		for i, sh := range tc.shift {
+			ac := tc.document.GetCursorRightPosition(sh)
+			assert.Equal(t, tc.expected[i], ac)
+		}
 	}
 }
 
@@ -1171,9 +1356,14 @@ func TestDocument_Lines(t *testing.T) {
 	}
 	ac := d.Lines()
 	ex := []string{"line 1", "line 2", "line 3", "line 4", ""}
-	if !reflect.DeepEqual(ac, ex) {
-		t.Errorf("Should be %#v, got %#v", ex, ac)
+	assert.Equal(t, ex, ac)
+	d = &Document{
+		Text:           "зеленый\nкрасный\nсиний\nжелтый",
+		cursorPosition: 13,
 	}
+	ac = d.Lines()
+	ex = []string{"зеленый", "красный", "синий", "желтый"}
+	assert.Equal(t, ex, ac)
 }
 
 func TestDocument_LineCount(t *testing.T) {
@@ -1183,9 +1373,14 @@ func TestDocument_LineCount(t *testing.T) {
 	}
 	ac := d.LineCount()
 	ex := 5
-	if ac != ex {
-		t.Errorf("Should be %#v, got %#v", ex, ac)
+	assert.Equal(t, ex, ac)
+	d = &Document{
+		Text:           "зеленый\nкрасный\nсиний\nжелтый",
+		cursorPosition: 13,
 	}
+	ac = d.LineCount()
+	ex = 4
+	assert.Equal(t, ex, ac)
 }
 
 func TestDocument_TranslateIndexToPosition(t *testing.T) {
@@ -1226,6 +1421,27 @@ func TestDocument_TranslateRowColToIndex(t *testing.T) {
 	}
 }
 
+func TestDocument_TranslateRowColToCursor(t *testing.T) {
+	d := &Document{
+		Text:           "line 1\nline 2\nline 3\nline 4\n",
+		cursorPosition: len("line 1\n" + "lin"),
+	}
+	ac := d.TranslateRowColToCursor(2, 3)
+	ex := len("line 1\nline 2\nlin")
+	assert.Equal(t, ex, ac)
+	ac = d.TranslateRowColToCursor(0, 0)
+	ex = 0
+	assert.Equal(t, ex, ac)
+
+	d = &Document{
+		Text:           "строка 1\nстрока 2\nстрока 3",
+		cursorPosition: 5,
+	}
+	assert.Equal(t, 21, d.TranslateRowColToCursor(2, 3))
+	assert.Equal(t, 9, d.TranslateRowColToCursor(1, 0))
+	assert.Equal(t, 4, d.TranslateRowColToCursor(0, 4))
+}
+
 func TestDocument_OnLastLine(t *testing.T) {
 	d := &Document{
 		Text:           "line 1\nline 2\nline 3",
@@ -1251,5 +1467,85 @@ func TestDocument_GetEndOfLinePosition(t *testing.T) {
 	ex := len("ne 2")
 	if ac != ex {
 		t.Errorf("Should be %#v, got %#v", ex, ac)
+	}
+}
+
+func Test_getCursorIndex(t *testing.T) {
+	cases := []struct {
+		input    string
+		expected int
+	}{
+		{"abcdef", 6},
+		{"line1\nline2", 11},
+		{"строка 1\nстрока 2", 29},
+		{"line1\nline2\nlonglongline", 24},
+		{"", 0},
+		{"аба", 6},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			d := &Document{
+				Text:           tc.input,
+				cursorPosition: len([]rune(tc.input)),
+			}
+			assert.Equal(t, tc.expected, d.getCursorIndex())
+		})
+	}
+}
+
+func Test_GetCursorPosition(t *testing.T) {
+	cases := []struct {
+		input       string
+		expectedRow int
+		expectedCol int
+	}{
+		{"abcdef", 0, 6},
+		{"line1\nline2", 1, 5},
+		{"строка 1\nстрока 2", 1, 8},
+		{"line1\nline2\nlonglongline", 2, 12},
+		{"", 0, 0},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			d := &Document{
+				Text:           tc.input,
+				cursorPosition: len([]rune(tc.input)),
+			}
+			row, col := d.GetCursorPosition()
+			assert.Equal(t, tc.expectedRow, row)
+			assert.Equal(t, tc.expectedCol, col)
+		})
+	}
+}
+
+func Test_GetCustomCursorPosition(t *testing.T) {
+	cases := []struct {
+		input       string
+		position    int
+		expectedRow int
+		expectedCol int
+	}{
+		{"abcdef", 0, 0, 0},
+		{"abcdef", 1, 0, 1},
+		{"line1\nline2", 2, 0, 2},
+		{"line1\nline2\nlonglongline", 12, 2, 0},
+		{"line1\nline2\nlonglongline", 23, 2, 11},
+		{"", 0, 0, 0},
+		{"строка1\nстрока2\nстрока3", 9, 1, 1},
+		{"строка1\nстрока2\nстрока3", 16, 2, 0},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			d := &Document{
+				Text:           tc.input,
+				cursorPosition: len([]rune(tc.input)),
+			}
+			row, col := d.GetCustomCursorPosition(tc.position)
+			assert.Equal(t, tc.expectedRow, row)
+			assert.Equal(t, tc.expectedCol, col)
+		})
 	}
 }
