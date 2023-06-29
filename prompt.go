@@ -3,7 +3,6 @@ package prompt
 import (
 	"bytes"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/c-bata/go-prompt/internal/debug"
@@ -130,10 +129,6 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 
 	switch key {
 	case Enter, ControlJ, ControlM:
-		if p.renderer.reverseSearchEnabled {
-			p.turnOffReverseSearch(1)
-		}
-
 		p.renderer.BreakLine(p.buf)
 		exec = &Exec{input: p.buf.Text()}
 		p.buf = NewBuffer()
@@ -141,20 +136,11 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 			p.history.Add(exec.input)
 		}
 	case ControlC:
-		if p.renderer.reverseSearchEnabled {
-			offsetCnt := strings.Count(p.history.lastReverseFinded, "\n") + 1
-			p.history.lastReverseFinded = ""
-			p.turnOffReverseSearch(offsetCnt)
-		}
-
 		p.renderer.BreakLine(p.buf)
 		p.buf = NewBuffer()
 		p.history.Clear()
 	case Up, ControlP:
-		if p.renderer.reverseSearchEnabled {
-			offsetCnt := strings.Count(p.history.lastReverseFinded, "\n") + 1
-			p.turnOffReverseSearch(offsetCnt)
-		} else if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
+		if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
 			// if this is a multiline buffer and the cursor is not at the top line,
 			// then we just move up the cursor
 			if p.buf.NewLineCount() > 0 && p.buf.Document().CursorPositionRow() > 0 {
@@ -167,10 +153,7 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 			}
 		}
 	case Down, ControlN:
-		if p.renderer.reverseSearchEnabled {
-			offsetCnt := strings.Count(p.history.lastReverseFinded, "\n") + 1
-			p.turnOffReverseSearch(offsetCnt)
-		} else if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
+		if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
 			// if this is a multiline buffer and the cursor is not at the top line,
 			// then we just move up the cursor
 			// debug.Log(fmt.Sprintln("NewLineCount:", p.buf.NewLineCount()))
@@ -186,21 +169,12 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 			}
 		}
 	case Left, Right:
-		if p.renderer.reverseSearchEnabled {
-			offsetCnt := strings.Count(p.history.lastReverseFinded, "\n") + 1
-			p.turnOffReverseSearch(offsetCnt)
-		}
 	case ControlD:
 		if p.buf.Text() == "" {
 			shouldExit = true
 			return
 		}
 	case ControlR:
-		if !p.renderer.reverseSearchEnabled {
-			p.renderer.reverseSearchEnabled = true
-		} else {
-			p.history.reverseSearchIndex++
-		}
 	case NotDefined:
 		if p.handleASCIICodeBinding(b) {
 			return
@@ -344,20 +318,4 @@ func (p *Prompt) tearDown() {
 		debug.AssertNoError(p.in.TearDown())
 	}
 	p.renderer.TearDown()
-}
-
-func (p *Prompt) turnOffReverseSearch(eraseLinesCnt int) {
-	for i := 0; i < eraseLinesCnt; i++ {
-		p.renderer.out.CursorUp(1)
-		p.renderer.out.EraseLine()
-	}
-
-	p.renderer.out.CursorBackward(maxBackwardColumn)
-
-	p.buf = NewBuffer()
-	p.buf.setText(p.history.lastReverseFinded)
-
-	p.renderer.reverseSearchEnabled = false
-	p.renderer.searchPrefixIsSet = false
-	p.history.lastReverseFinded = ""
 }

@@ -19,9 +19,6 @@ type Render struct {
 	row                uint16
 	col                uint16
 
-	reverseSearchEnabled bool
-	searchPrefixIsSet    bool
-
 	previousCursor int
 
 	// colors,
@@ -42,13 +39,6 @@ type Render struct {
 	scrollbarThumbColor          Color
 	scrollbarBGColor             Color
 }
-
-const (
-	matchSearchPrefix = "bck-i-search"
-	failSearchPrefix  = "failing bck-i-search"
-	maxBackwardColumn = 256
-	magic             = 5
-)
 
 // Setup to initialize console output.
 func (r *Render) Setup() {
@@ -223,17 +213,13 @@ func (r *Render) Render(buffer *Buffer, previousText string, completion *Complet
 	r.out.EraseLine()
 	r.out.EraseDown()
 
-	if r.reverseSearchEnabled {
-		r.renderReverseSearch(buffer, history)
-	} else {
-		r.renderPrefix()
+	r.renderPrefix()
 
-		if buffer.NewLineCount() > 0 {
-			r.renderMultiline(buffer, history)
-		} else {
-			r.out.WriteStr(line)
-			defer r.out.ShowCursor()
-		}
+	if buffer.NewLineCount() > 0 {
+		r.renderMultiline(buffer, history)
+	} else {
+		r.out.WriteStr(line)
+		defer r.out.ShowCursor()
 	}
 
 	r.lineWrap(cursor)
@@ -285,31 +271,6 @@ func (r *Render) renderMultiline(buffer *Buffer, history *History) {
 
 	r.out.SetColor(r.inputTextColor, r.inputBGColor, false)
 	r.out.WriteStr(after)
-}
-
-func (r *Render) renderReverseSearch(buffer *Buffer, history *History) {
-	if !r.searchPrefixIsSet {
-		r.renderPrefix()
-		r.out.WriteStr(fmt.Sprintf("\n%s: %s", matchSearchPrefix, buffer.Text()))
-		r.searchPrefixIsSet = true
-	} else {
-		upLinesCnt := strings.Count(history.lastReverseFinded, "\n") + 1
-		searchPrefix := matchSearchPrefix
-		if !history.reverseFindInHistory(buffer.Text()) {
-			searchPrefix = failSearchPrefix
-		}
-
-		r.out.CursorBackward(magic)
-		for i := 0; i < upLinesCnt; i++ {
-			r.out.CursorUp(1)
-			r.out.EraseLine()
-		}
-
-		r.renderPrefix()
-		r.out.WriteStr(fmt.Sprintf("%s\n%s: %s", history.lastReverseFinded, searchPrefix, buffer.Text()))
-	}
-
-	r.out.ShowCursor()
 }
 
 // BreakLine to break line.

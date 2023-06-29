@@ -1,15 +1,10 @@
 package prompt
 
-import "strings"
-
 // History stores the texts that are entered.
 type History struct {
 	histories []string
 	tmp       []string
 	selected  int
-
-	lastReverseFinded  string
-	reverseSearchIndex int
 }
 
 // Add to add text in history.
@@ -54,25 +49,6 @@ func (h *History) Newer(buf *Buffer) (new *Buffer, changed bool) {
 	new = NewBuffer()
 	new.InsertText(h.tmp[h.selected], false, true)
 	return new, true
-}
-
-func (h *History) reverseFindInHistory(input string) bool {
-	if input == "" {
-		h.lastReverseFinded = ""
-		return true
-	}
-
-	history := h.histories[:len(h.histories)-h.reverseSearchIndex]
-	historyLen := len(history)
-
-	for i, _ := range history {
-		if strings.Contains(history[historyLen-i-1], input) {
-			h.lastReverseFinded = history[historyLen-i-1]
-			return true
-		}
-	}
-
-	return false
 }
 
 // NewHistory returns new history object.
