@@ -24,7 +24,7 @@ func OptionWriter(x ConsoleWriter) Option {
 // OptionTitle to set title displayed at the header bar of terminal.
 func OptionTitle(x string) Option {
 	return func(p *Prompt) error {
-		p.renderer.title = x
+		p.title = x
 		return nil
 	}
 }
@@ -32,7 +32,7 @@ func OptionTitle(x string) Option {
 // OptionPrefix to set prefix string.
 func OptionPrefix(x string) Option {
 	return func(p *Prompt) error {
-		p.renderer.prefix = x
+		p.prefix = x
 		return nil
 	}
 }
@@ -56,7 +56,7 @@ func OptionCompletionWordSeparator(x string) Option {
 // OptionLivePrefix to change the prefix dynamically by callback function
 func OptionLivePrefix(f func() (prefix string, useLivePrefix bool)) Option {
 	return func(p *Prompt) error {
-		p.renderer.livePrefixCallback = f
+		p.livePrefixCallback = f
 		return nil
 	}
 }
@@ -272,11 +272,11 @@ func New(executor Executor, completer Completer, opts ...Option) *Prompt {
 	registerConsoleWriter(defaultWriter)
 
 	pt := &Prompt{
-		in: NewStandardInputParser(),
+		prefix:             "> ",
+		in:                 NewStandardInputParser(),
+		livePrefixCallback: func() (string, bool) { return "", false },
 		renderer: &Render{
-			prefix:                       "> ",
 			out:                          defaultWriter,
-			livePrefixCallback:           func() (string, bool) { return "", false },
 			prefixTextColor:              Blue,
 			prefixBGColor:                DefaultColor,
 			inputTextColor:               DefaultColor,

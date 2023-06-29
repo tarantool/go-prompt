@@ -6,7 +6,7 @@ func dummyExecutor(in string) {}
 func Input(prefix string, completer Completer, opts ...Option) string {
 	pt := New(dummyExecutor, completer)
 	pt.renderer.prefixTextColor = DefaultColor
-	pt.renderer.prefix = prefix
+	pt.prefix = prefix
 
 	for _, opt := range opts {
 		if err := opt(pt); err != nil {
@@ -22,7 +22,7 @@ func Choose(prefix string, choices []string, opts ...Option) string {
 	completer := newChoiceCompleter(choices, FilterHasPrefix)
 	pt := New(dummyExecutor, completer)
 	pt.renderer.prefixTextColor = DefaultColor
-	pt.renderer.prefix = prefix
+	pt.prefix = prefix
 
 	for _, opt := range opts {
 		if err := opt(pt); err != nil {

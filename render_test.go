@@ -1,11 +1,16 @@
+//go:build !windows
 // +build !windows
 
 package prompt
 
 import (
+	"bytes"
+	"io"
 	"reflect"
 	"syscall"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFormatCompletion(t *testing.T) {
@@ -72,11 +77,9 @@ func TestFormatCompletion(t *testing.T) {
 func TestBreakLineCallback(t *testing.T) {
 	var i int
 	r := &Render{
-		prefix: "> ",
 		out: &PosixWriter{
 			fd: syscall.Stdin, // "write" to stdin just so we don't mess with the output of the tests
 		},
-		livePrefixCallback:           func() (string, bool) { return "", false },
 		prefixTextColor:              Blue,
 		prefixBGColor:                DefaultColor,
 		inputTextColor:               DefaultColor,
@@ -96,7 +99,7 @@ func TestBreakLineCallback(t *testing.T) {
 		col:                          1,
 	}
 	b := NewBuffer()
-	r.BreakLine(b)
+	r.renderBreakLine(renderCtx{cmd: b})
 
 	if i != 0 {
 		t.Errorf("i should initially be 0, before applying a break line callback")
@@ -105,11 +108,59 @@ func TestBreakLineCallback(t *testing.T) {
 	r.breakLineCallback = func(doc *Document) {
 		i++
 	}
-	r.BreakLine(b)
-	r.BreakLine(b)
-	r.BreakLine(b)
+	r.renderBreakLine(renderCtx{cmd: b})
+	r.renderBreakLine(renderCtx{cmd: b})
+	r.renderBreakLine(renderCtx{cmd: b})
 
 	if i != 3 {
 		t.Errorf("BreakLine callback not called, i should be 3")
+	}
+}
+
+type mockConsoleWriter struct {
+	VT100Writer
+	w       io.Writer
+	flushed bool
+}
+
+func (m *mockConsoleWriter) Flush() error {
+	m.flushed = true
+	m.w.Write(m.buffer)
+	m.buffer = m.buffer[:0]
+	return nil
+}
+
+var _ ConsoleWriter = &mockConsoleWriter{}
+
+func TestWriteCmd(t *testing.T) {
+	buffer := bytes.Buffer{}
+	consoleWriter := &mockConsoleWriter{w: &buffer}
+	prefixColor := DarkBlue
+
+	cases := []struct {
+		cmd       string
+		prefixLen int
+		expected  string
+	}{
+		{
+			cmd:       "command1\ncommand2\n",
+			prefixLen: 0,
+			expected:  "\x1b[0;34;49m\x1b[0;39;49mcommand1\ncommand2\n",
+		},
+		{
+			cmd:       "prefix> command1\ncommand2\n¥¥¼",
+			prefixLen: 7,
+			expected:  "\x1b[0;34;49mprefix>\x1b[0;39;49m command1\ncommand2\n¥¥¼",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.cmd, func(t *testing.T) {
+			writeCmdWithPrefix(consoleWriter, tc.cmd, tc.prefixLen,
+				prefixColor, DefaultColor, DefaultColor)
+			consoleWriter.Flush()
+			assert.Equal(t, tc.expected, string(buffer.Bytes()))
+			buffer.Reset()
+		})
 	}
 }

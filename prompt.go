@@ -21,11 +21,41 @@ type ExitChecker func(in string, breakline bool) bool
 // Completer should return the suggest item from Document.
 type Completer func(Document) []Suggest
 
+// location indicates the relative location of the cursor on the screen.
+type location struct {
+	row int
+	col int
+}
+
+// renderCtx describes render context.
+type renderCtx struct {
+	cmd              *Buffer
+	cursor           location
+	completion       *CompletionManager
+	prefixColor      Color
+	prefix           string
+	renderCompletion bool
+	renderEvent      int
+}
+
+// fillCtx fills render context.
+func (prompt *Prompt) fillCtx(renderEvent int) renderCtx {
+	ctx := renderCtx{}
+	ctx.cmd, _ = prompt.getCmdToRender()
+	ctx.prefix = prompt.getCurrentPrefix()
+	ctx.prefixColor = prompt.renderer.prefixTextColor
+	ctx.cursor = prompt.cursor
+	ctx.completion = prompt.completion
+	ctx.renderCompletion = !(prompt.buf.NewLineCount() > 0)
+	ctx.renderEvent = renderEvent
+	return ctx
+}
+
 // Prompt is core struct of go-prompt.
 type Prompt struct {
 	in                ConsoleParser
 	buf               *Buffer
-	prevText          string
+	cursor            location
 	renderer          *Render
 	executor          Executor
 	history           *History
@@ -36,6 +66,10 @@ type Prompt struct {
 	completionOnDown  bool
 	exitChecker       ExitChecker
 	skipTearDown      bool
+
+	prefix             string
+	livePrefixCallback func() (prefix string, useLivePrefix bool)
+	title              string
 }
 
 // Exec is the struct contains user input context.
@@ -43,7 +77,7 @@ type Exec struct {
 	input string
 }
 
-// ClearScreen :: Clears the screen
+// ClearScreen clears the screen.
 func (p *Prompt) ClearScreen() {
 	p.renderer.ClearScreen()
 }
@@ -60,7 +94,7 @@ func (p *Prompt) Run() {
 		p.completion.Update(*p.buf.Document())
 	}
 
-	p.renderer.Render(p.buf, p.prevText, p.completion, p.history)
+	p.render(basicRenderEvent)
 
 	bufCh := make(chan []byte, 128)
 	stopReadBufCh := make(chan struct{})
@@ -74,8 +108,13 @@ func (p *Prompt) Run() {
 	for {
 		select {
 		case b := <-bufCh:
-			if shouldExit, e := p.feed(b); shouldExit {
-				p.renderer.BreakLine(p.buf)
+			shouldExit, e := p.feed(b)
+
+			// Run onUpdate hook.
+			p.onInputUpdate()
+
+			if shouldExit {
+				p.render(breakLineRenderEvent)
 				stopReadBufCh <- struct{}{}
 				stopHandleSignalCh <- struct{}{}
 				return
@@ -87,11 +126,9 @@ func (p *Prompt) Run() {
 				// Unset raw mode
 				// Reset to Blocking mode because returned EAGAIN when still set non-blocking mode.
 				debug.AssertNoError(p.in.TearDown())
+
 				p.executor(e.input)
-
-				p.completion.Update(*p.buf.Document())
-
-				p.renderer.Render(p.buf, p.prevText, p.completion, p.history)
+				p.render(basicRenderEvent)
 
 				if p.exitChecker != nil && p.exitChecker(e.input, true) {
 					p.skipTearDown = true
@@ -102,14 +139,15 @@ func (p *Prompt) Run() {
 				go p.readBuffer(bufCh, stopReadBufCh)
 				go p.handleSignals(exitCh, winSizeCh, stopHandleSignalCh)
 			} else {
-				p.completion.Update(*p.buf.Document())
-				p.renderer.Render(p.buf, p.prevText, p.completion, p.history)
+				p.render(basicRenderEvent)
 			}
 		case w := <-winSizeCh:
+			p.onInputUpdate()
 			p.renderer.UpdateWinSize(w)
-			p.renderer.Render(p.buf, p.prevText, p.completion, p.history)
+			p.render(basicRenderEvent)
 		case code := <-exitCh:
-			p.renderer.BreakLine(p.buf)
+			p.onInputUpdate()
+			p.render(breakLineRenderEvent)
 			p.tearDown()
 			os.Exit(code)
 		default:
@@ -120,7 +158,6 @@ func (p *Prompt) Run() {
 
 func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 	key := GetKey(b)
-	p.prevText = p.buf.Text()
 
 	p.buf.lastKeyStroke = key
 	// completion
@@ -129,42 +166,26 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 
 	switch key {
 	case Enter, ControlJ, ControlM:
-		p.renderer.BreakLine(p.buf)
-		exec = &Exec{input: p.buf.Text()}
+		execCmd := p.buf.Text()
+		p.render(breakLineRenderEvent)
 		p.buf = NewBuffer()
+		exec = &Exec{input: execCmd}
 		if exec.input != "" {
 			p.history.Add(exec.input)
 		}
 	case ControlC:
-		p.renderer.BreakLine(p.buf)
+		p.render(breakLineRenderEvent)
 		p.buf = NewBuffer()
 		p.history.Clear()
 	case Up, ControlP:
 		if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
-			// if this is a multiline buffer and the cursor is not at the top line,
-			// then we just move up the cursor
-			if p.buf.NewLineCount() > 0 && p.buf.Document().CursorPositionRow() > 0 {
-				// this is a multiline buffer
-				// move the cursor up by one line
-				p.buf.CursorUp(1)
-			} else if newBuf, changed := p.history.Older(p.buf); changed {
-				p.prevText = p.buf.Text()
+			if newBuf, changed := p.history.Older(p.buf); changed {
 				p.buf = newBuf
 			}
 		}
 	case Down, ControlN:
 		if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
-			// if this is a multiline buffer and the cursor is not at the top line,
-			// then we just move up the cursor
-			// debug.Log(fmt.Sprintln("NewLineCount:", p.buf.NewLineCount()))
-			// debug.Log(fmt.Sprintln("CursorPositionRow:", p.buf.Document().CursorPositionRow()))
-
-			if p.buf.NewLineCount() > 0 && p.buf.Document().CursorPositionRow() < (p.buf.NewLineCount()) {
-				// this is a multiline buffer
-				// move the cursor up by one line
-				p.buf.CursorDown(1)
-			} else if newBuf, changed := p.history.Newer(p.buf); changed {
-				p.prevText = p.buf.Text()
+			if newBuf, changed := p.history.Newer(p.buf); changed {
 				p.buf = newBuf
 			}
 		}
@@ -265,7 +286,7 @@ func (p *Prompt) Input() string {
 		p.completion.Update(*p.buf.Document())
 	}
 
-	p.renderer.Render(p.buf, p.prevText, p.completion, p.history)
+	p.render(basicRenderEvent)
 	bufCh := make(chan []byte, 128)
 	stopReadBufCh := make(chan struct{})
 	go p.readBuffer(bufCh, stopReadBufCh)
@@ -274,7 +295,7 @@ func (p *Prompt) Input() string {
 		select {
 		case b := <-bufCh:
 			if shouldExit, e := p.feed(b); shouldExit {
-				p.renderer.BreakLine(p.buf)
+				p.render(breakLineRenderEvent)
 				stopReadBufCh <- struct{}{}
 				return ""
 			} else if e != nil {
@@ -282,8 +303,8 @@ func (p *Prompt) Input() string {
 				stopReadBufCh <- struct{}{}
 				return e.input
 			} else {
-				p.completion.Update(*p.buf.Document())
-				p.renderer.Render(p.buf, p.prevText, p.completion, p.history)
+				p.onInputUpdate()
+				p.render(basicRenderEvent)
 			}
 		default:
 			time.Sleep(10 * time.Millisecond)
@@ -309,7 +330,7 @@ func (p *Prompt) readBuffer(bufCh chan []byte, stopCh chan struct{}) {
 
 func (p *Prompt) setUp() {
 	debug.AssertNoError(p.in.Setup())
-	p.renderer.Setup()
+	p.renderer.Setup(p.title)
 	p.renderer.UpdateWinSize(p.in.GetWinSize())
 }
 
@@ -318,4 +339,38 @@ func (p *Prompt) tearDown() {
 		debug.AssertNoError(p.in.TearDown())
 	}
 	p.renderer.TearDown()
+}
+
+// getCmdToRender builds command to render.
+// Returns (buffer with command to render, prefix length in bytes).
+func (prompt *Prompt) getCmdToRender() (cmd *Buffer, prefixLen int) {
+	input := prompt.buf.Text()
+	prefix := prompt.getCurrentPrefix()
+	cmdBuf := NewBuffer()
+	cmdBuf.InsertText(prefix, false, true)
+	cmdBuf.InsertText(input, false, true)
+	cmdBuf.setCursorPosition(len(prefix) + prompt.buf.cursorPosition)
+	return cmdBuf, len(prefix)
+}
+
+// getCurrentPrefix returns current prefix.
+// If live-prefix is enabled, return live-prefix.
+func (prompt *Prompt) getCurrentPrefix() string {
+	if prefix, ok := prompt.livePrefixCallback(); ok {
+		return prefix
+	}
+	return prompt.prefix
+}
+
+// onInputUpdate does necessary actions at the input update moment.
+func (prompt *Prompt) onInputUpdate() {
+	prompt.history.SetCurrentCmd(prompt.buf.Text())
+	prompt.completion.Update(*prompt.buf.Document())
+}
+
+// render renders current prompt state to the attached renderer,
+// updates current cursor position.
+func (prompt *Prompt) render(event int) {
+	ctx := prompt.fillCtx(event)
+	prompt.cursor.row, prompt.cursor.col = prompt.renderer.Render(ctx)
 }

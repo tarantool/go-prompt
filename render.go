@@ -1,27 +1,28 @@
 package prompt
 
 import (
-	"fmt"
 	"runtime"
-	"strings"
 
 	"github.com/c-bata/go-prompt/internal/debug"
 	runewidth "github.com/mattn/go-runewidth"
 )
 
+const (
+	// basicRenderEvent renders context and completion.
+	basicRenderEvent = iota
+	// breakLineRenderEvent renders context with break-line.
+	breakLineRenderEvent
+)
+
 // Render to render prompt information from state of Buffer.
 type Render struct {
-	out                ConsoleWriter
-	prefix             string
-	livePrefixCallback func() (prefix string, useLivePrefix bool)
-	breakLineCallback  func(*Document)
-	title              string
-	row                uint16
-	col                uint16
+	out ConsoleWriter
 
-	previousCursor int
+	breakLineCallback func(*Document)
+	row               uint16
+	col               uint16
 
-	// colors,
+	// Colors.
 	prefixTextColor              Color
 	prefixBGColor                Color
 	inputTextColor               Color
@@ -41,26 +42,11 @@ type Render struct {
 }
 
 // Setup to initialize console output.
-func (r *Render) Setup() {
-	if r.title != "" {
-		r.out.SetTitle(r.title)
+func (r *Render) Setup(title string) {
+	if title != "" {
+		r.out.SetTitle(title)
 		debug.AssertNoError(r.out.Flush())
 	}
-}
-
-// getCurrentPrefix to get current prefix.
-// If live-prefix is enabled, return live-prefix.
-func (r *Render) getCurrentPrefix() string {
-	if prefix, ok := r.livePrefixCallback(); ok {
-		return prefix
-	}
-	return r.prefix
-}
-
-func (r *Render) renderPrefix() {
-	r.out.SetColor(r.prefixTextColor, r.prefixBGColor, false)
-	r.out.WriteStr(r.getCurrentPrefix())
-	r.out.SetColor(DefaultColor, DefaultColor, false)
 }
 
 // TearDown to clear title and erasing.
@@ -92,12 +78,13 @@ func (r *Render) renderWindowTooSmall() {
 	r.out.WriteStr("Your console window is too small...")
 }
 
-func (r *Render) renderCompletion(buf *Buffer, completions *CompletionManager) {
-	suggestions := completions.GetSuggestions()
-	if len(completions.GetSuggestions()) == 0 {
+// renderCompletion renders completion.
+func (r *Render) renderCompletion(ctx renderCtx) {
+	suggestions := ctx.completion.GetSuggestions()
+	if len(suggestions) == 0 {
 		return
 	}
-	prefix := r.getCurrentPrefix()
+	prefix := ctx.prefix
 	formatted, width := formatSuggestions(
 		suggestions,
 		int(r.col)-runewidth.StringWidth(prefix)-1, // -1 means a width of scrollbar
@@ -106,22 +93,22 @@ func (r *Render) renderCompletion(buf *Buffer, completions *CompletionManager) {
 	width++
 
 	windowHeight := len(formatted)
-	if windowHeight > int(completions.max) {
-		windowHeight = int(completions.max)
+	if windowHeight > int(ctx.completion.max) {
+		windowHeight = int(ctx.completion.max)
 	}
-	formatted = formatted[completions.verticalScroll : completions.verticalScroll+windowHeight]
+	formatted = formatted[ctx.completion.verticalScroll : ctx.completion.verticalScroll+windowHeight]
 	r.prepareArea(windowHeight)
 
-	cursor := runewidth.StringWidth(prefix) + runewidth.StringWidth(buf.Document().TextBeforeCursor())
+	cursor := runewidth.StringWidth(ctx.cmd.Document().TextBeforeCursor())
 	x, _ := r.toPos(cursor)
 	if x+width >= int(r.col) {
 		cursor = r.backward(cursor, x+width-int(r.col))
 	}
 
-	contentHeight := len(completions.tmp)
+	contentHeight := len(ctx.completion.tmp)
 
 	fractionVisible := float64(windowHeight) / float64(contentHeight)
-	fractionAbove := float64(completions.verticalScroll) / float64(contentHeight)
+	fractionAbove := float64(ctx.completion.verticalScroll) / float64(contentHeight)
 
 	scrollbarHeight := int(clamp(float64(windowHeight), 1, float64(windowHeight)*fractionVisible))
 	scrollbarTop := int(float64(windowHeight) * fractionAbove)
@@ -130,7 +117,7 @@ func (r *Render) renderCompletion(buf *Buffer, completions *CompletionManager) {
 		return scrollbarTop <= row && row <= scrollbarTop+scrollbarHeight
 	}
 
-	selected := completions.selected - completions.verticalScroll
+	selected := ctx.completion.selected - ctx.completion.verticalScroll
 	r.out.SetColor(White, Cyan, false)
 	for i := 0; i < windowHeight; i++ {
 		r.out.CursorDown(1)
@@ -174,120 +161,115 @@ func (r *Render) ClearScreen() {
 	r.out.CursorGoTo(0, 0)
 }
 
-// Render renders to the console.
-func (r *Render) Render(buffer *Buffer, previousText string, completion *CompletionManager, history *History) {
-	defer debug.Un(debug.Trace("Render"))
+// writeCmdWithPrefix writes cmd with prefix to the out.
+func writeCmdWithPrefix(
+	out ConsoleWriter,
+	cmd string,
+	prefixLen int,
+	prefixColor Color,
+	bgColor Color,
+	defaultColor Color,
+) {
+	out.SetColor(prefixColor, bgColor, false)
+	out.WriteStr(cmd[:prefixLen])
+	out.SetColor(DefaultColor, DefaultColor, false)
+	out.WriteStr(cmd[prefixLen:])
+}
+
+// renderCtx renders context to the out, returns new position of the cursor.
+func (r *Render) renderCtx(ctx renderCtx) (int, int) {
+	// Calculate current cursor position.
+	cursorRow, cursorCol := ctx.cmd.Document().GetCursorPosition()
+	// Calculate cursor position of the line end.
+	endRow, endCol := ctx.cmd.Document().GetCustomCursorPosition(
+		len([]rune(ctx.cmd.Text())),
+	)
+
+	// Erase rendered recently.
+	r.clear(ctx.cursor.row*int(r.col) + ctx.cursor.col)
+
+	// Render.
+	writeCmdWithPrefix(r.out, ctx.cmd.Text(), len(ctx.prefix),
+		ctx.prefixColor, r.prefixBGColor, DefaultColor)
+	r.lineWrap(endCol)
+
+	// Move cursor back to the position inside cmd.
+	r.move(endRow*int(r.col)+endCol, cursorRow*int(r.col)+cursorCol)
+	return cursorRow, cursorCol
+}
+
+// Render is main render function.
+// It calls suitable sub-render function (as `renderBreakLine`) in dependence of render event.
+// Returns new cursor position.
+func (r *Render) Render(ctx renderCtx) (int, int) {
 	// In situations where a pseudo tty is allocated (e.g. within a docker container),
 	// window size via TIOCGWINSZ is not immediately available and will result in 0,0 dimensions.
+	if ctx.renderEvent == breakLineRenderEvent {
+		return r.renderBreakLine(ctx)
+	}
 	if r.col == 0 {
-		return
+		return 0, 0
 	}
 	defer func() { debug.AssertNoError(r.out.Flush()) }()
 
-	line := buffer.Text()
-	traceBackLines := strings.Count(previousText, "\n")
-	if len(line) == 0 {
-		// if the new buffer is empty, then we shouldn't traceback any
-		traceBackLines = 0
-	}
-	debug.Log(fmt.Sprintln(line))
-	debug.Log(fmt.Sprintln(traceBackLines))
-
-	r.move((traceBackLines)*int(r.col)+r.previousCursor, 0)
-
-	prefix := r.getCurrentPrefix()
-	cursor := runewidth.StringWidth(prefix) + runewidth.StringWidth(line)
-
-	// prepare area
-	_, y := r.toPos((traceBackLines + int(r.col)) + cursor)
-
-	h := y + 1 + int(completion.max)
-	if h > int(r.row) || completionMargin > int(r.col) {
-		r.renderWindowTooSmall()
-		return
-	}
-
-	// Rendering
+	// Hide cursor to prevent blinking.
 	r.out.HideCursor()
+	defer func() {
+		r.out.ShowCursor()
+	}()
 
-	r.out.EraseLine()
-	r.out.EraseDown()
+	// Render current state.
+	cursorRow, cursorCol := r.renderCtx(ctx)
 
-	r.renderPrefix()
+	if ctx.renderCompletion {
+		r.renderCompletion(ctx)
+		if suggest, ok := ctx.completion.GetSelectedSuggestion(); ok {
+			cursorCol = r.backward(cursorCol, runewidth.StringWidth(
+				ctx.cmd.Document().GetWordBeforeCursorUntilSeparator(
+					ctx.completion.wordSeparator,
+				),
+			))
 
-	if buffer.NewLineCount() > 0 {
-		r.renderMultiline(buffer, history)
-	} else {
-		r.out.WriteStr(line)
-		defer r.out.ShowCursor()
-	}
+			r.out.SetColor(r.previewSuggestionTextColor, r.previewSuggestionBGColor, false)
+			r.out.WriteStr(suggest.Text)
+			r.out.SetColor(DefaultColor, DefaultColor, false)
+			cursorCol += runewidth.StringWidth(suggest.Text)
 
-	r.lineWrap(cursor)
-	r.out.SetColor(DefaultColor, DefaultColor, false)
+			rest := ctx.cmd.Document().TextAfterCursor()
+			r.out.WriteStr(rest)
+			cursorCol += runewidth.StringWidth(rest)
+			r.lineWrap(cursorCol)
 
-	cursor = r.backward(cursor, runewidth.StringWidth(line)-buffer.DisplayCursorPosition())
-
-	r.renderCompletion(buffer, completion)
-	if suggest, ok := completion.GetSelectedSuggestion(); ok {
-		cursor = r.backward(cursor, runewidth.StringWidth(buffer.Document().GetWordBeforeCursorUntilSeparator(completion.wordSeparator)))
-
-		r.out.SetColor(r.previewSuggestionTextColor, r.previewSuggestionBGColor, false)
-		r.out.WriteStr(suggest.Text)
-		r.out.SetColor(DefaultColor, DefaultColor, false)
-		cursor += runewidth.StringWidth(suggest.Text)
-
-		rest := buffer.Document().TextAfterCursor()
-		r.out.WriteStr(rest)
-		cursor += runewidth.StringWidth(rest)
-		r.lineWrap(cursor)
-
-		cursor = r.backward(cursor, runewidth.StringWidth(rest))
-	}
-	r.previousCursor = cursor
-}
-
-func (r *Render) renderMultiline(buffer *Buffer, history *History) {
-	before := buffer.Document().TextBeforeCursor()
-	cursor := ""
-	after := ""
-
-	if len(buffer.Document().TextAfterCursor()) == 0 {
-		cursor = " "
-		after = ""
-	} else {
-		cursor = string(buffer.Text()[buffer.Document().cursorPosition])
-		if cursor == "\n" {
-			cursor = " \n"
+			cursorCol = r.backward(cursorCol, runewidth.StringWidth(rest))
 		}
-		after = buffer.Document().TextAfterCursor()[1:]
 	}
 
-	r.out.SetColor(r.inputTextColor, r.inputBGColor, false)
-	r.out.WriteStr(before)
-	history.Add(before)
-
-	r.out.SetDisplayAttributes(r.inputTextColor, r.inputBGColor, DisplayReverse)
-	r.out.WriteStr(cursor)
-
-	r.out.SetColor(r.inputTextColor, r.inputBGColor, false)
-	r.out.WriteStr(after)
+	return cursorRow, cursorCol
 }
 
-// BreakLine to break line.
-func (r *Render) BreakLine(buffer *Buffer) {
-	// Erasing and Render
-	cursor := (buffer.NewLineCount() * int(r.col)) + runewidth.StringWidth(buffer.Document().TextBeforeCursor()) + runewidth.StringWidth(r.getCurrentPrefix())
-	r.clear(cursor)
-	r.renderPrefix()
-	r.out.SetColor(r.inputTextColor, r.inputBGColor, false)
-	r.out.WriteStr(buffer.Document().Text + "\n")
-	r.out.SetColor(DefaultColor, DefaultColor, false)
-	debug.AssertNoError(r.out.Flush())
-	if r.breakLineCallback != nil {
-		r.breakLineCallback(buffer.Document())
-	}
+// renderBreakline renders state with linebreak and calls break-line callback.
+func (r *Render) renderBreakLine(ctx renderCtx) (int, int) {
+	defer func() { debug.AssertNoError(r.out.Flush()) }()
 
-	r.previousCursor = 0
+	// Hide cursor to prevent blinking.
+	r.out.HideCursor()
+	defer func() {
+		r.out.ShowCursor()
+	}()
+
+	cmdBuf := NewBuffer()
+	cmdBuf.InsertText(ctx.cmd.Text()+"\n", false, true)
+
+	cmdDocument := ctx.cmd.Document()
+	ctx.cmd = cmdBuf
+
+	// Render state.
+	r.renderCtx(ctx)
+
+	if r.breakLineCallback != nil {
+		r.breakLineCallback(cmdDocument)
+	}
+	return 0, 0
 }
 
 // clear erases the screen from a beginning of input
