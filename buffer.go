@@ -189,6 +189,46 @@ func (b *Buffer) SwapCharactersBeforeCursor() {
 	}
 }
 
+// SplitWideLines splits lines, whose width is greater than maxWidth to multiple lines.
+func (b *Buffer) SplitWideLines(maxWidth int) *Buffer {
+	textLines := b.Document().Lines()
+	processedText := strings.Builder{}
+
+	currentCursor := 0
+	cmdCursor := b.cursorPosition
+	cmdCursorDelta := 0
+
+	for _, line := range textLines {
+		runes := []rune(line)
+		for j := 0; j < len(runes); j += maxWidth {
+			size := len(runes) - j
+			if size > maxWidth {
+				size = maxWidth
+			}
+			processedText.WriteString(string(runes[j : j+size]))
+			processedText.WriteByte('\n')
+			if currentCursor+size-1 < cmdCursor && j+size < len(runes) {
+				// Shifts cursor because of the extra `\n`.
+				cmdCursorDelta++
+			}
+			currentCursor += size
+		}
+		if len(runes) == 0 {
+			processedText.WriteByte('\n')
+		}
+		currentCursor++
+	}
+
+	resultStr := processedText.String()
+	// Remove extra `\n`
+	resultStr = resultStr[:len(resultStr)-1]
+
+	result := NewBuffer()
+	result.InsertText(resultStr, false, true)
+	result.setCursorPosition(cmdCursor + cmdCursorDelta)
+	return result
+}
+
 // NewBuffer is constructor of Buffer struct.
 func NewBuffer() (b *Buffer) {
 	b = &Buffer{

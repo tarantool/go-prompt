@@ -176,8 +176,17 @@ func writeCmdWithPrefix(
 	out.WriteStr(cmd[prefixLen:])
 }
 
+// preprocessCtx preprocesses the context before rendering.
+func (r *Render) preprocessCtx(ctx renderCtx) renderCtx {
+	ctx.cmd = ctx.cmd.SplitWideLines(int(r.col))
+	return ctx
+}
+
 // renderCtx renders context to the out, returns new position of the cursor.
 func (r *Render) renderCtx(ctx renderCtx) (int, int) {
+	// Preprocess the context.
+	ctx = r.preprocessCtx(ctx)
+
 	// Calculate current cursor position.
 	cursorRow, cursorCol := ctx.cmd.Document().GetCursorPosition()
 	// Calculate cursor position of the line end.
@@ -195,6 +204,7 @@ func (r *Render) renderCtx(ctx renderCtx) (int, int) {
 
 	// Move cursor back to the position inside cmd.
 	r.move(endRow*int(r.col)+endCol, cursorRow*int(r.col)+cursorCol)
+
 	return cursorRow, cursorCol
 }
 
@@ -247,7 +257,7 @@ func (r *Render) Render(ctx renderCtx) (int, int) {
 	return cursorRow, cursorCol
 }
 
-// renderBreakline renders state with linebreak and calls break-line callback.
+// renderBreakline renders state with linebreak and calls breakline callback.
 func (r *Render) renderBreakLine(ctx renderCtx) (int, int) {
 	defer func() { debug.AssertNoError(r.out.Flush()) }()
 
@@ -269,6 +279,7 @@ func (r *Render) renderBreakLine(ctx renderCtx) (int, int) {
 	if r.breakLineCallback != nil {
 		r.breakLineCallback(cmdDocument)
 	}
+
 	return 0, 0
 }
 
