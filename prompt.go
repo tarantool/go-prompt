@@ -41,15 +41,19 @@ type renderCtx struct {
 
 // fillCtx fills render context.
 func (prompt *Prompt) fillCtx(renderEvent int) renderCtx {
-	ctx := renderCtx{}
-	ctx.cmd, _ = prompt.getCmdToRender()
-	ctx.prefix = prompt.getCurrentPrefix()
-	ctx.prefixColor = prompt.renderer.prefixTextColor
-	ctx.cursor = prompt.cursor
-	ctx.completion = prompt.completion
-	ctx.renderCompletion = !prompt.inReverseSearchMode() &&
-		!(prompt.buf.NewLineCount() > 0)
-	ctx.renderEvent = renderEvent
+	cmd, _ := prompt.getCmdToRender()
+	prefix := prompt.getCurrentPrefix()
+
+	ctx := renderCtx{
+		cmd:         cmd,
+		cursor:      prompt.cursor,
+		completion:  prompt.completion,
+		prefixColor: prompt.renderer.prefixTextColor,
+		prefix:      prefix,
+		renderCompletion: !prompt.inReverseSearchMode() &&
+			!(prompt.buf.NewLineCount() > 0),
+		renderEvent: renderEvent,
+	}
 	return ctx
 }
 

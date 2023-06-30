@@ -3,6 +3,8 @@ package prompt
 import (
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewBuffer(t *testing.T) {
@@ -195,4 +197,33 @@ func TestBuffer_SwapCharactersBeforeCursor(t *testing.T) {
 	if ac != ex {
 		t.Errorf("Should be %#v, got %#v", ex, ac)
 	}
+}
+
+func TestBuffer_SplitWideLines(t *testing.T) {
+	buf := NewBuffer()
+	buf.InsertText("зеленый \n красный \n синий \n белый", false, true)
+	buf.setCursorPosition(20) // `с`
+	buf = buf.SplitWideLines(3)
+	assert.Equal(t, "зел\nены\nй \n кр\nасн\nый \n си\nний\n \n бе\nлый", buf.Text())
+	assert.Equal(t, 24, buf.cursorPosition)
+
+	buf = NewBuffer()
+	buf.InsertText("long long line\nsecond line", false, true)
+	buf = buf.SplitWideLines(20)
+	assert.Equal(t, "long long line\nsecond line", buf.Text())
+	assert.Equal(t, 26, buf.cursorPosition)
+
+	buf = NewBuffer()
+	buf.InsertText("привет\nпока", false, true)
+	buf.setCursorPosition(2)
+	buf = buf.SplitWideLines(2)
+	assert.Equal(t, "пр\nив\nет\nпо\nка", buf.Text())
+	assert.Equal(t, 3, buf.cursorPosition)
+
+	buf = NewBuffer()
+	buf.InsertText("a\n\nb\n\nc\n", false, true)
+	buf.setCursorPosition(2)
+	buf = buf.SplitWideLines(1)
+	assert.Equal(t, "a\n\nb\n\nc\n", buf.Text())
+	assert.Equal(t, 2, buf.cursorPosition)
 }
