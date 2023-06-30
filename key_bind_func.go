@@ -27,13 +27,31 @@ func DeleteBeforeChar(buf *Buffer) {
 	buf.DeleteBeforeCursor(1)
 }
 
-// GoRightChar Forward one character
+// GoRightChar forwards to one character to the right.
+// In the case of a multi-line command the cursor moves down,
+// when the end of the line is reached.
 func GoRightChar(buf *Buffer) {
+	if buf.Document().GetCursorRightPosition(1) == 0 {
+		if !buf.Document().OnLastLine() {
+			buf.CursorDown(1)
+			GoLineBeginning(buf)
+		}
+		return
+	}
 	buf.CursorRight(1)
 }
 
-// GoLeftChar Backward one character
+// GoLeftChar backward to one character to the left.
+// In the case of a multi-line command the cursor moves up,
+// when the begin of the line is reached.
 func GoLeftChar(buf *Buffer) {
+	if buf.Document().GetCursorLeftPosition(1) == 0 {
+		if buf.Document().CursorPositionRow() != 0 {
+			buf.CursorUp(1)
+			GoLineEnd(buf)
+		}
+		return
+	}
 	buf.CursorLeft(1)
 }
 
