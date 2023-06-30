@@ -18,6 +18,12 @@ type Document struct {
 	// But DisplayedCursorPosition returns 4 because '日' and '本' are double width characters.
 	cursorPosition int
 	lastKey        Key
+
+	// linesCache is the cache for function `Lines`.
+	linesCache []string
+
+	// lineStartIndexesCache is the cache for function `lineStartIndexes`.
+	lineStartIndexesCache []int
 }
 
 // NewDocument return the new empty document.
@@ -272,9 +278,10 @@ func (d *Document) CurrentLine() string {
 
 // Array pointing to the start indexes of all the lines.
 func (d *Document) lineStartIndexes() []int {
-	// TODO: Cache, because this is often reused.
-	// (If it is used, it's often used many times.
-	// And this has to be fast for editing big documents!)
+	if d.lineStartIndexesCache != nil {
+		return d.lineStartIndexesCache
+	}
+
 	lc := d.LineCount()
 	lengths := make([]int, lc)
 	for i, l := range d.Lines() {
@@ -293,7 +300,9 @@ func (d *Document) lineStartIndexes() []int {
 		// Pop the last item. (This is not a new line.)
 		indexes = indexes[:lc]
 	}
-	return indexes
+
+	d.lineStartIndexesCache = indexes
+	return d.lineStartIndexesCache
 }
 
 // For the index of a character at a certain line, calculate the index of
@@ -405,8 +414,11 @@ func (d *Document) GetCursorDownPosition(count int, preferredColumn int) int {
 
 // Lines returns the array of all the lines.
 func (d *Document) Lines() []string {
-	// TODO: Cache, because this one is reused very often.
-	return strings.Split(d.Text, "\n")
+	if d.linesCache != nil {
+		return d.linesCache
+	}
+	d.linesCache = strings.Split(d.Text, "\n")
+	return d.linesCache
 }
 
 // LineCount return the number of lines in this document. If the document ends
