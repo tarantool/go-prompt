@@ -229,6 +229,34 @@ func (b *Buffer) SplitWideLines(maxWidth int) *Buffer {
 	return result
 }
 
+// ReplaceTabs replaces all `\t` characters with spaces.
+func (b *Buffer) ReplaceTabs(tabWidth int) *Buffer {
+	processedText := strings.Builder{}
+	runes := []rune(b.Text())
+	processedText.Grow(len(runes))
+
+	cmdCursor := b.cursorPosition
+	cursorDelta := 0
+
+	for cursor, r := range runes {
+		if r == rune('\t') {
+			for j := 0; j < tabWidth; j++ {
+				processedText.WriteByte(' ')
+			}
+			if cursor < cmdCursor {
+				cursorDelta += tabWidth - 1
+			}
+		} else {
+			processedText.WriteRune(r)
+		}
+	}
+
+	result := NewBuffer()
+	result.InsertText(processedText.String(), false, true)
+	result.setCursorPosition(cmdCursor + cursorDelta)
+	return result
+}
+
 // NewBuffer is constructor of Buffer struct.
 func NewBuffer() (b *Buffer) {
 	b = &Buffer{

@@ -165,3 +165,13 @@ func TestPushToHistory(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestInternalPushToHistory(t *testing.T) {
+	prompt := Prompt{history: NewHistory()}
+	cmd := "if something then\n\tprint(1)\nelse\n\tprint(2)"
+	prompt.pushToHistory(cmd)
+
+	assert.Equal(t, 1, len(prompt.history.histories))
+	assert.Equal(t, "if something then\n    print(1)\nelse\n    print(2)",
+		prompt.history.histories[0])
+}

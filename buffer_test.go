@@ -227,3 +227,25 @@ func TestBuffer_SplitWideLines(t *testing.T) {
 	assert.Equal(t, "a\n\nb\n\nc\n", buf.Text())
 	assert.Equal(t, 2, buf.cursorPosition)
 }
+
+func TestBuffer_ReplaceTabs(t *testing.T) {
+	buf := NewBuffer()
+	buf.InsertText("строка1\n\tстрока2\n\tстрока 3", false, true)
+	buf.setCursorPosition(18) // 'с'
+	buf = buf.ReplaceTabs(4)
+	assert.Equal(t, "строка1\n    строка2\n    строка 3", buf.Text())
+	assert.Equal(t, 24, buf.cursorPosition)
+
+	buf = NewBuffer()
+	buf.InsertText("a\tb\tc\t", false, true)
+	buf.setCursorPosition(0)
+	buf = buf.ReplaceTabs(0)
+	assert.Equal(t, "abc", buf.Text())
+	assert.Equal(t, 0, buf.cursorPosition)
+
+	buf = NewBuffer()
+	buf.InsertText("localhost>\ta", false, true)
+	buf = buf.ReplaceTabs(4)
+	assert.Equal(t, "localhost>    a", buf.Text())
+	assert.Equal(t, 15, buf.cursorPosition)
+}

@@ -418,6 +418,7 @@ func (prompt *Prompt) getCurrentPrefix() string {
 
 // onInputUpdate does necessary actions at the input update moment.
 func (prompt *Prompt) onInputUpdate() {
+	prompt.buf = prompt.buf.ReplaceTabs(defaultTabWidth)
 	if prompt.inReverseSearchMode() {
 		prompt.reverseSearch.update(prompt.buf.Text())
 		return
@@ -469,12 +470,21 @@ func (p *Prompt) disableReverseSearch() {
 	p.reverseSearch = nil
 }
 
+// pushToHistory takes command, replaces tabs with spaces,
+// pushes it to the history.
+func (p *Prompt) pushToHistory(cmd string) {
+	cmdBuf := NewBuffer()
+	cmdBuf.InsertText(cmd, false, true)
+	cmdBuf = cmdBuf.ReplaceTabs(defaultTabWidth)
+	p.history.Add(cmdBuf.Text())
+}
+
 // PushToHistory pushes to the history, if auto history is disabled.
 func (p *Prompt) PushToHistory(cmd string) error {
 	if p.isAutoHistoryEnabled {
 		return fmt.Errorf("external pushes to the history are forbidden, " +
 			"use `OptionDisableAutoHistory`")
 	}
-	p.history.Add(cmd)
+	p.pushToHistory(cmd)
 	return nil
 }
