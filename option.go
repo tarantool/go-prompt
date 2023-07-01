@@ -1,5 +1,9 @@
 package prompt
 
+const (
+	defaultTabWidth = 4
+)
+
 // Option is the type to replace default parameters.
 // prompt.New accepts any number of options (this is functional option pattern).
 type Option func(prompt *Prompt) error
@@ -200,7 +204,14 @@ func OptionMaxSuggestion(x uint16) Option {
 // OptionHistory to set history expressed by string array.
 func OptionHistory(x []string) Option {
 	return func(p *Prompt) error {
-		p.history.histories = x
+		histories := make([]string, 0, len(x))
+		for _, history := range x {
+			historyBuf := NewBuffer()
+			historyBuf.InsertText(history, false, true)
+			historyBuf = historyBuf.ReplaceTabs(defaultTabWidth)
+			histories = append(histories, historyBuf.Text())
+		}
+		p.history.histories = histories
 		p.history.Clear()
 		return nil
 	}
