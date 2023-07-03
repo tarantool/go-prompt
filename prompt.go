@@ -3,6 +3,7 @@ package prompt
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"os"
 	"time"
 
@@ -89,6 +90,9 @@ type Prompt struct {
 
 	// isAutoHistoryEnabled is true if automatic writing to the history is enabled.
 	isAutoHistoryEnabled bool
+
+	// notifyConn is a connection used for rendering notifications.
+	notifyConn net.Conn
 }
 
 // Exec is the struct contains user input context.
@@ -134,6 +138,7 @@ func (p *Prompt) Run() {
 
 			if shouldExit {
 				p.render(breakLineRenderEvent)
+				p.notifyRender()
 				stopReadBufCh <- struct{}{}
 				stopHandleSignalCh <- struct{}{}
 				return
@@ -148,6 +153,7 @@ func (p *Prompt) Run() {
 
 				p.executor(e.input)
 				p.render(basicRenderEvent)
+				p.notifyRender()
 
 				if p.exitChecker != nil && p.exitChecker(e.input, true) {
 					p.skipTearDown = true
@@ -159,14 +165,17 @@ func (p *Prompt) Run() {
 				go p.handleSignals(exitCh, winSizeCh, stopHandleSignalCh)
 			} else {
 				p.render(basicRenderEvent)
+				p.notifyRender()
 			}
 		case w := <-winSizeCh:
 			p.onInputUpdate()
 			p.renderer.UpdateWinSize(w)
 			p.render(windowResizeRenderEvent)
+			p.notifyRender()
 		case code := <-exitCh:
 			p.onInputUpdate()
 			p.render(breakLineRenderEvent)
+			p.notifyRender()
 			p.tearDown()
 			os.Exit(code)
 		default:
@@ -376,6 +385,7 @@ func (p *Prompt) setUp() {
 	p.renderer.UpdateWinSize(p.in.GetWinSize())
 }
 
+// tearDown restores the terminal state when prompt is turned off.
 func (p *Prompt) tearDown() {
 	if !p.skipTearDown {
 		debug.AssertNoError(p.in.TearDown())
@@ -487,4 +497,11 @@ func (p *Prompt) PushToHistory(cmd string) error {
 	}
 	p.pushToHistory(cmd)
 	return nil
+}
+
+// notifyAboutRender notifying about rendering if such option was provided.
+func (p *Prompt) notifyRender() {
+	if p.notifyConn != nil {
+		p.notifyConn.Write([]byte{67})
+	}
 }

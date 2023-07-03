@@ -1,5 +1,7 @@
 package prompt
 
+import "net"
+
 const (
 	defaultTabWidth = 4
 )
@@ -290,6 +292,15 @@ func OptionDisableAutoHistory() Option {
 	return func(p *Prompt) error {
 		p.isAutoHistoryEnabled = false
 		return nil
+	}
+}
+
+// OptionEnableRenderSubscribeMode enables a subscription to rendering updates.
+func OptionEnableRenderSubscribeMode(socketUri string) Option {
+	return func(prompt *Prompt) error {
+		var err error
+		prompt.notifyConn, err = net.Dial("unix", socketUri)
+		return err
 	}
 }
 

@@ -24,3 +24,8 @@ _testmain.go
 
 # Glide
 vendor/
+
+
+# Pytest
+.pytest_cache
+__pycache__
