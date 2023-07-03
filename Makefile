@@ -40,6 +40,18 @@ generate: ## Run go generate
 build: ## Build example command lines.
 	./_example/build.sh
 
+.PHONY: build_app
+build_app: ## Build testing application.
+ifdef GO_RPOMPT_BUILD_PATH
+	@go build -o $(GO_RPOMPT_BUILD_PATH) ./internal/prompt_app/prompt_app.go
+else
+	@go build ./internal/prompt_app/prompt_app.go
+endif
+
+.PHONY: integration
+integration: ## Run integration tests.
+	@pytest -v ./test/integration
+
 .PHONY: help
 help: ## Show help text
 	@echo "Commands:"
