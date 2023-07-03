@@ -266,6 +266,17 @@ func OptionSetExitCheckerOnInput(fn ExitChecker) Option {
 	}
 }
 
+// OptionReverseSearch enables reverse search option.
+func OptionReverseSearch() Option {
+	return func(p *Prompt) error {
+		p.isReverseSearchEnabled = true
+		return nil
+	}
+}
+
+// getInputParser returns input parser.
+var getInputParser = NewStandardInputParser
+
 // New returns a Prompt with powerful auto-completion.
 func New(executor Executor, completer Completer, opts ...Option) *Prompt {
 	defaultWriter := NewStdoutWriter()
@@ -273,7 +284,7 @@ func New(executor Executor, completer Completer, opts ...Option) *Prompt {
 
 	pt := &Prompt{
 		prefix:             "> ",
-		in:                 NewStandardInputParser(),
+		in:                 getInputParser(),
 		livePrefixCallback: func() (string, bool) { return "", false },
 		renderer: &Render{
 			out:                          defaultWriter,

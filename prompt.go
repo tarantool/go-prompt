@@ -2,6 +2,7 @@ package prompt
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"time"
 
@@ -46,7 +47,8 @@ func (prompt *Prompt) fillCtx(renderEvent int) renderCtx {
 	ctx.prefixColor = prompt.renderer.prefixTextColor
 	ctx.cursor = prompt.cursor
 	ctx.completion = prompt.completion
-	ctx.renderCompletion = !(prompt.buf.NewLineCount() > 0)
+	ctx.renderCompletion = !prompt.inReverseSearchMode() &&
+		!(prompt.buf.NewLineCount() > 0)
 	ctx.renderEvent = renderEvent
 	return ctx
 }
@@ -70,6 +72,13 @@ type Prompt struct {
 	prefix             string
 	livePrefixCallback func() (prefix string, useLivePrefix bool)
 	title              string
+
+	// reverseSearch is a pointer to the current reverse-search state.
+	// not nil pointer means that reverse-search mode is active.
+	reverseSearch *reverseSearchState
+
+	// isReverseSearchEnabled is true if such option was provided.
+	isReverseSearchEnabled bool
 }
 
 // Exec is the struct contains user input context.
@@ -167,6 +176,14 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 	switch key {
 	case Enter, ControlJ, ControlM:
 		execCmd := p.buf.Text()
+		if p.inReverseSearchMode() {
+			// Execute last matched command in case of enabled reverse search.
+			execCmd = p.reverseSearch.matchedCmd
+			p.disableReverseSearch()
+
+			// Render executed command before breakline.
+			p.render(basicRenderEvent)
+		}
 		p.render(breakLineRenderEvent)
 		p.buf = NewBuffer()
 		exec = &Exec{input: execCmd}
@@ -174,28 +191,43 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 			p.history.Add(exec.input)
 		}
 	case ControlC:
+		if p.inReverseSearchMode() {
+			p.disableReverseSearch()
+		}
 		p.render(breakLineRenderEvent)
 		p.buf = NewBuffer()
 		p.history.Clear()
 	case Up, ControlP:
-		if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
+		if p.inReverseSearchMode() {
+			p.disableReverseSearch()
+		} else if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
 			if newBuf, changed := p.history.Older(p.buf); changed {
 				p.buf = newBuf
 			}
 		}
 	case Down, ControlN:
-		if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
+		if p.inReverseSearchMode() {
+			p.disableReverseSearch()
+		} else if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
 			if newBuf, changed := p.history.Newer(p.buf); changed {
 				p.buf = newBuf
 			}
 		}
 	case Left, Right:
+		if p.inReverseSearchMode() {
+			p.disableReverseSearch()
+		}
 	case ControlD:
 		if p.buf.Text() == "" {
 			shouldExit = true
 			return
 		}
 	case ControlR:
+		if p.inReverseSearchMode() {
+			p.reverseSearch.reducePrefix()
+		} else {
+			p.enableReverseSearch()
+		}
 	case NotDefined:
 		if p.handleASCIICodeBinding(b) {
 			return
@@ -348,14 +380,26 @@ func (prompt *Prompt) getCmdToRender() (cmd *Buffer, prefixLen int) {
 	prefix := prompt.getCurrentPrefix()
 	cmdBuf := NewBuffer()
 	cmdBuf.InsertText(prefix, false, true)
-	cmdBuf.InsertText(input, false, true)
-	cmdBuf.setCursorPosition(len(prefix) + prompt.buf.cursorPosition)
+	if prompt.inReverseSearchMode() {
+		cmdBuf.InsertText(prompt.reverseSearch.matchedCmd, false, true)
+	} else {
+		cmdBuf.InsertText(input, false, true)
+		cmdBuf.setCursorPosition(len(prefix) + prompt.buf.cursorPosition)
+	}
 	return cmdBuf, len(prefix)
 }
 
 // getCurrentPrefix returns current prefix.
+// If reverse search is enabled, its prefix extracted.
 // If live-prefix is enabled, return live-prefix.
 func (prompt *Prompt) getCurrentPrefix() string {
+	if prompt.inReverseSearchMode() {
+		rsPrefixFmt := matchSearchPrefixFmt
+		if prompt.reverseSearch.matchedIndex == -1 {
+			rsPrefixFmt = failSearchPrefixFmt
+		}
+		return fmt.Sprintf(rsPrefixFmt, prompt.buf.Text())
+	}
 	if prefix, ok := prompt.livePrefixCallback(); ok {
 		return prefix
 	}
@@ -364,6 +408,10 @@ func (prompt *Prompt) getCurrentPrefix() string {
 
 // onInputUpdate does necessary actions at the input update moment.
 func (prompt *Prompt) onInputUpdate() {
+	if prompt.inReverseSearchMode() {
+		prompt.reverseSearch.update(prompt.buf.Text())
+		return
+	}
 	prompt.history.SetCurrentCmd(prompt.buf.Text())
 	prompt.completion.Update(*prompt.buf.Document())
 }
@@ -373,4 +421,40 @@ func (prompt *Prompt) onInputUpdate() {
 func (prompt *Prompt) render(event int) {
 	ctx := prompt.fillCtx(event)
 	prompt.cursor.row, prompt.cursor.col = prompt.renderer.Render(ctx)
+}
+
+// inReverseSearchMode returns true if the prompt is in reverse-search mode.
+func (p *Prompt) inReverseSearchMode() bool {
+	return p.reverseSearch != nil
+}
+
+// enableReverseSearch enables reverse-search mode.
+func (p *Prompt) enableReverseSearch() {
+	if !p.isReverseSearchEnabled || p.inReverseSearchMode() {
+		return
+	}
+
+	p.buf = NewBuffer()
+	p.reverseSearch = NewReverseSearch(p.history)
+}
+
+// disableReverseSearch disables reverse-search mode,
+// sets history pointer to the last matched command.
+func (p *Prompt) disableReverseSearch() {
+	if !p.isReverseSearchEnabled || !p.inReverseSearchMode() {
+		return
+	}
+
+	matchedIndex := p.reverseSearch.matchedIndex
+	matchedCmd := p.reverseSearch.matchedCmd
+	p.history.Clear()
+	p.buf = NewBuffer()
+
+	if matchedIndex != -1 {
+		p.history.selected = matchedIndex
+		p.history.SetCurrentCmd(matchedCmd)
+		p.buf.InsertText(matchedCmd, false, true)
+	}
+
+	p.reverseSearch = nil
 }
