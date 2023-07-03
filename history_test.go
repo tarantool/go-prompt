@@ -73,3 +73,20 @@ func TestHistorySetCurrent(t *testing.T) {
 	history.SetCurrentCmd(newCmd)
 	assert.Equal(t, newCmd, history.tmp[history.selected])
 }
+
+func TestHistoryFindMatch(t *testing.T) {
+	history := NewHistory()
+	history.Add("line 0")
+	history.Add("cmd1")
+	history.Add("cmd2")
+	history.Add("")
+	history.Add("x")
+	history.SetCurrentCmd("echo")
+
+	assert.Equal(t, 5, history.FindMatch("", 5))
+	assert.Equal(t, 5, history.FindMatch("c", 5))
+	assert.Equal(t, 2, history.FindMatch("cmd", 2))
+	assert.Equal(t, 1, history.FindMatch("cmd1", 2))
+	assert.Equal(t, 0, history.FindMatch("line", 5))
+	assert.Equal(t, -1, history.FindMatch("line 10", 5))
+}

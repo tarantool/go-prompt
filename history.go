@@ -1,5 +1,7 @@
 package prompt
 
+import "strings"
+
 // History stores the texts that are entered.
 type History struct {
 	histories []string
@@ -54,6 +56,17 @@ func (h *History) Newer(buf *Buffer) (new *Buffer, changed bool) {
 // SetCurrentCmd sets current command.
 func (h *History) SetCurrentCmd(cmd string) {
 	h.tmp[h.selected] = cmd
+}
+
+// FindMatch finds last match of input in the specified prefix
+// in current history state.
+func (h *History) FindMatch(input string, prefix int) int {
+	for i := prefix; i >= 0; i-- {
+		if strings.Contains(h.tmp[i], input) {
+			return i
+		}
+	}
+	return -1
 }
 
 // NewHistory returns new history object.
