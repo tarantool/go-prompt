@@ -32,6 +32,7 @@ type location struct {
 type renderCtx struct {
 	cmd              *Buffer
 	cursor           location
+	endCursor        location
 	completion       *CompletionManager
 	prefixColor      Color
 	prefix           string
@@ -47,6 +48,7 @@ func (prompt *Prompt) fillCtx(renderEvent int) renderCtx {
 	ctx := renderCtx{
 		cmd:         cmd,
 		cursor:      prompt.cursor,
+		endCursor:   prompt.endCursor,
 		completion:  prompt.completion,
 		prefixColor: prompt.renderer.prefixTextColor,
 		prefix:      prefix,
@@ -62,6 +64,7 @@ type Prompt struct {
 	in                ConsoleParser
 	buf               *Buffer
 	cursor            location
+	endCursor         location
 	renderer          *Render
 	executor          Executor
 	history           *History
@@ -160,7 +163,7 @@ func (p *Prompt) Run() {
 		case w := <-winSizeCh:
 			p.onInputUpdate()
 			p.renderer.UpdateWinSize(w)
-			p.render(basicRenderEvent)
+			p.render(windowResizeRenderEvent)
 		case code := <-exitCh:
 			p.onInputUpdate()
 			p.render(breakLineRenderEvent)
@@ -427,7 +430,7 @@ func (prompt *Prompt) onInputUpdate() {
 // updates current cursor position.
 func (prompt *Prompt) render(event int) {
 	ctx := prompt.fillCtx(event)
-	prompt.cursor.row, prompt.cursor.col = prompt.renderer.Render(ctx)
+	prompt.cursor, prompt.endCursor = prompt.renderer.Render(ctx)
 }
 
 // inReverseSearchMode returns true if the prompt is in reverse-search mode.
