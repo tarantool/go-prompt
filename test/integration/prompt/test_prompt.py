@@ -239,3 +239,9 @@ def test_tabs(prompt):
 
     prompt.send_keys("Up")
     assert prompt.dump_workspace() == "prompt_app> if 1    print(2)else    print(3)"
+
+
+def test_console_not_broken(prompt):
+    prompt.send_keys(["exit", "text"])
+    expected = """prompt_app> exittext"""
+    assert prompt.dump_workspace() == expected
