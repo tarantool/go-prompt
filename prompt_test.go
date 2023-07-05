@@ -135,3 +135,33 @@ func TestDisableReverseSearch(t *testing.T) {
 	assert.Equal(t, "", prompt.buf.Text())
 	assert.Equal(t, len(history.tmp)-1, history.selected)
 }
+
+func TestPushToHistory(t *testing.T) {
+	oldGetInputParser := getInputParser
+	defer func() {
+		getInputParser = oldGetInputParser
+	}()
+	getInputParser = func() *PosixParser {
+		return nil
+	}
+
+	t.Run("option enabled", func(t *testing.T) {
+		prompt := New(
+			func(s string) {},
+			func(d Document) []Suggest { return []Suggest{} },
+			OptionDisableAutoHistory(),
+		)
+		err := prompt.PushToHistory("cmd")
+		assert.NoError(t, err)
+		assert.Equal(t, len(prompt.history.histories), 1)
+	})
+
+	t.Run("option disabled", func(t *testing.T) {
+		prompt := New(
+			func(s string) {},
+			func(d Document) []Suggest { return []Suggest{} },
+		)
+		err := prompt.PushToHistory("cmd")
+		assert.Error(t, err)
+	})
+}
