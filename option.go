@@ -274,6 +274,14 @@ func OptionReverseSearch() Option {
 	}
 }
 
+// OptionDisableAutoHistory disables auto pushes to the history.
+func OptionDisableAutoHistory() Option {
+	return func(p *Prompt) error {
+		p.isAutoHistoryEnabled = false
+		return nil
+	}
+}
+
 // getInputParser returns input parser.
 var getInputParser = NewStandardInputParser
 
@@ -283,9 +291,10 @@ func New(executor Executor, completer Completer, opts ...Option) *Prompt {
 	registerConsoleWriter(defaultWriter)
 
 	pt := &Prompt{
-		prefix:             "> ",
-		in:                 getInputParser(),
-		livePrefixCallback: func() (string, bool) { return "", false },
+		prefix:               "> ",
+		in:                   getInputParser(),
+		livePrefixCallback:   func() (string, bool) { return "", false },
+		isAutoHistoryEnabled: true,
 		renderer: &Render{
 			out:                          defaultWriter,
 			prefixTextColor:              Blue,

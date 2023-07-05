@@ -79,6 +79,9 @@ type Prompt struct {
 
 	// isReverseSearchEnabled is true if such option was provided.
 	isReverseSearchEnabled bool
+
+	// isAutoHistoryEnabled is true if automatic writing to the history is enabled.
+	isAutoHistoryEnabled bool
 }
 
 // Exec is the struct contains user input context.
@@ -187,7 +190,7 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 		p.render(breakLineRenderEvent)
 		p.buf = NewBuffer()
 		exec = &Exec{input: execCmd}
-		if exec.input != "" {
+		if exec.input != "" && p.isAutoHistoryEnabled {
 			p.history.Add(exec.input)
 		}
 	case ControlC:
@@ -457,4 +460,14 @@ func (p *Prompt) disableReverseSearch() {
 	}
 
 	p.reverseSearch = nil
+}
+
+// PushToHistory pushes to the history, if auto history is disabled.
+func (p *Prompt) PushToHistory(cmd string) error {
+	if p.isAutoHistoryEnabled {
+		return fmt.Errorf("external pushes to the history are forbidden, " +
+			"use `OptionDisableAutoHistory`")
+	}
+	p.history.Add(cmd)
+	return nil
 }
