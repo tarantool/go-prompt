@@ -3,8 +3,13 @@
 ## Unreleased
 
 ### Added
+* Support for multi-line commands.
+* Support for tab characters in commands.
+* Integration tests.
+* Reverse search.
 
-* Reverse search
+### Fixed
+* Terminal failure after exiting.
 
 ## v0.2.3 (2018/10/25)
 
