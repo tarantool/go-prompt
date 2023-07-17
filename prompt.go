@@ -14,10 +14,12 @@ import (
 type Executor func(string)
 
 // ExitChecker is called after user input to check if prompt must stop and exit go-prompt Run loop.
-// User input means: selecting/typing an entry, then, if said entry content matches the ExitChecker function criteria:
+// User input means: selecting/typing an entry, then, if said entry content matches the ExitChecker
+// function criteria:
 // - immediate exit (if breakline is false) without executor called
-// - exit after typing <return> (meaning breakline is true), and the executor is called first, before exit.
-// Exit means exit go-prompt (not the overall Go program)
+// - exit after typing <return> (meaning breakline is true), and the executor is called first,
+// before exit.
+// Exit means exit go-prompt (not the overall Go program).
 type ExitChecker func(in string, breakline bool) bool
 
 // Completer should return the suggest item from Document.
@@ -42,19 +44,19 @@ type renderCtx struct {
 }
 
 // fillCtx fills render context.
-func (prompt *Prompt) fillCtx(renderEvent int) renderCtx {
-	cmd, _ := prompt.getCmdToRender()
-	prefix := prompt.getCurrentPrefix()
+func (p *Prompt) fillCtx(renderEvent int) renderCtx {
+	cmd, _ := p.getCmdToRender()
+	prefix := p.getCurrentPrefix()
 
 	ctx := renderCtx{
 		cmd:         cmd,
-		cursor:      prompt.cursor,
-		endCursor:   prompt.endCursor,
-		completion:  prompt.completion,
-		prefixColor: prompt.renderer.prefixTextColor,
+		cursor:      p.cursor,
+		endCursor:   p.endCursor,
+		completion:  p.completion,
+		prefixColor: p.renderer.prefixTextColor,
 		prefix:      prefix,
-		renderCompletion: !prompt.inReverseSearchMode() &&
-			!(prompt.buf.NewLineCount() > 0),
+		renderCompletion: !p.inReverseSearchMode() &&
+			!(p.buf.NewLineCount() > 0),
 		renderEvent: renderEvent,
 	}
 	return ctx
@@ -219,7 +221,8 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 	case Up, ControlP:
 		if p.inReverseSearchMode() {
 			p.disableReverseSearch()
-		} else if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
+		} else if !completing { // Don't use p.completion.Completing() because it takes double
+			// operation when switch to selected=-1.
 			if newBuf, changed := p.history.Older(p.buf); changed {
 				p.buf = newBuf
 			}
@@ -227,7 +230,8 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 	case Down, ControlN:
 		if p.inReverseSearchMode() {
 			p.disableReverseSearch()
-		} else if !completing { // Don't use p.completion.Completing() because it takes double operation when switch to selected=-1.
+		} else if !completing { // Don't use p.completion.Completing() because it takes double
+			// operation when switch to selected=-1.
 			if newBuf, changed := p.history.Newer(p.buf); changed {
 				p.buf = newBuf
 			}
@@ -395,16 +399,16 @@ func (p *Prompt) tearDown() {
 
 // getCmdToRender builds command to render.
 // Returns (buffer with command to render, prefix length in bytes).
-func (prompt *Prompt) getCmdToRender() (cmd *Buffer, prefixLen int) {
-	input := prompt.buf.Text()
-	prefix := prompt.getCurrentPrefix()
+func (p *Prompt) getCmdToRender() (cmd *Buffer, prefixLen int) {
+	input := p.buf.Text()
+	prefix := p.getCurrentPrefix()
 	cmdBuf := NewBuffer()
 	cmdBuf.InsertText(prefix, false, true)
-	if prompt.inReverseSearchMode() {
-		cmdBuf.InsertText(prompt.reverseSearch.matchedCmd, false, true)
+	if p.inReverseSearchMode() {
+		cmdBuf.InsertText(p.reverseSearch.matchedCmd, false, true)
 	} else {
 		cmdBuf.InsertText(input, false, true)
-		cmdBuf.setCursorPosition(len(prefix) + prompt.buf.cursorPosition)
+		cmdBuf.setCursorPosition(len(prefix) + p.buf.cursorPosition)
 	}
 	return cmdBuf, len(prefix)
 }
@@ -412,36 +416,36 @@ func (prompt *Prompt) getCmdToRender() (cmd *Buffer, prefixLen int) {
 // getCurrentPrefix returns current prefix.
 // If reverse search is enabled, its prefix extracted.
 // If live-prefix is enabled, return live-prefix.
-func (prompt *Prompt) getCurrentPrefix() string {
-	if prompt.inReverseSearchMode() {
+func (p *Prompt) getCurrentPrefix() string {
+	if p.inReverseSearchMode() {
 		rsPrefixFmt := matchSearchPrefixFmt
-		if prompt.reverseSearch.matchedIndex == -1 {
+		if p.reverseSearch.matchedIndex == -1 {
 			rsPrefixFmt = failSearchPrefixFmt
 		}
-		return fmt.Sprintf(rsPrefixFmt, prompt.buf.Text())
+		return fmt.Sprintf(rsPrefixFmt, p.buf.Text())
 	}
-	if prefix, ok := prompt.livePrefixCallback(); ok {
+	if prefix, ok := p.livePrefixCallback(); ok {
 		return prefix
 	}
-	return prompt.prefix
+	return p.prefix
 }
 
 // onInputUpdate does necessary actions at the input update moment.
-func (prompt *Prompt) onInputUpdate() {
-	prompt.buf = prompt.buf.ReplaceTabs(defaultTabWidth)
-	if prompt.inReverseSearchMode() {
-		prompt.reverseSearch.update(prompt.buf.Text())
+func (p *Prompt) onInputUpdate() {
+	p.buf = p.buf.ReplaceTabs(defaultTabWidth)
+	if p.inReverseSearchMode() {
+		p.reverseSearch.update(p.buf.Text())
 		return
 	}
-	prompt.history.SetCurrentCmd(prompt.buf.Text())
-	prompt.completion.Update(*prompt.buf.Document())
+	p.history.SetCurrentCmd(p.buf.Text())
+	p.completion.Update(*p.buf.Document())
 }
 
 // render renders current prompt state to the attached renderer,
 // updates current cursor position.
-func (prompt *Prompt) render(event int) {
-	ctx := prompt.fillCtx(event)
-	prompt.cursor, prompt.endCursor = prompt.renderer.Render(ctx)
+func (p *Prompt) render(event int) {
+	ctx := p.fillCtx(event)
+	p.cursor, p.endCursor = p.renderer.Render(ctx)
 }
 
 // inReverseSearchMode returns true if the prompt is in reverse-search mode.

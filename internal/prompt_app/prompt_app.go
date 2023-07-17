@@ -35,7 +35,7 @@ func NewConsole() *Console {
 }
 
 // addStmt merges two commands.
-// for multi-lines commands use `#` at the beginning and at the end of the command.
+// For multi-lines commands use `#` at the beginning and at the end of the command.
 func addStmt(have string, input string) (string, bool) {
 	isInputFinish := len(input) > 0 && input[len(input)-1] == '#'
 	if len(have) == 0 {

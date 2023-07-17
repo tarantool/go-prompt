@@ -227,18 +227,22 @@ cmd: if a then
 else
 print(y)
 prompt_app>"""
-    kek = prompt.dump_workspace()
     assert prompt.dump_workspace() == expected
 
 
-@pytest.mark.parametrize("prompt", [{"args": ["if 1\tprint(2)else\tprint(3)"]}], indirect=True)
+@pytest.mark.parametrize(
+    "prompt",
+    [{"args": ["if 1\tprint(2)else\tprint(3)"]}],
+    indirect=True
+)
 def test_tabs(prompt):
     prompt.send_keys("Hello,\tпривет,\ttabs")
     assert prompt.get_cursor() == (37, 0)
     assert prompt.dump_workspace() == "prompt_app> Hello,    привет,    tabs"
 
     prompt.send_keys("Up")
-    assert prompt.dump_workspace() == "prompt_app> if 1    print(2)else    print(3)"
+    expected = "prompt_app> if 1    print(2)else    print(3)"
+    assert prompt.dump_workspace() == expected
 
 
 def test_console_not_broken(prompt):

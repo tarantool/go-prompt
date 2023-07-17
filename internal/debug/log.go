@@ -29,7 +29,7 @@ func init() {
 	logger = log.New(ioutil.Discard, "", log.Llongfile)
 }
 
-// Teardown to close logfile
+// Teardown to close logfile.
 func Teardown() {
 	if logfile == nil {
 		return
@@ -46,7 +46,7 @@ func writeWithSync(calldepth int, msg string) {
 	_ = logfile.Sync() // immediately write msg
 }
 
-// Log to output message
+// Log to output message.
 func Log(msg string) {
 	calldepth := 2
 	writeWithSync(calldepth, msg)

@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package prompt
@@ -17,9 +18,10 @@ type PosixParser struct {
 	origTermios syscall.Termios
 }
 
-// Setup should be called before starting input
+// Setup should be called before starting input.
 func (t *PosixParser) Setup() error {
-	// Set NonBlocking mode because if syscall.Read block this goroutine, it cannot receive data from stopCh.
+	// Set NonBlocking mode because if syscall.Read block this goroutine, it cannot receive data
+	// from stopCh.
 	if err := syscall.SetNonblock(t.fd, true); err != nil {
 		return err
 	}
@@ -29,7 +31,7 @@ func (t *PosixParser) Setup() error {
 	return nil
 }
 
-// TearDown should be called after stopping input
+// TearDown should be called after stopping input.
 func (t *PosixParser) TearDown() error {
 	if err := syscall.SetNonblock(t.fd, false); err != nil {
 		return err

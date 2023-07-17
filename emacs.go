@@ -33,8 +33,8 @@ Editing
 * [ ] Ctrl + t   Swap the last two characters before the cursor (typo).
 * [ ] Esc  + t   Swap the last two words before the cursor.
 
-* [ ] ctrl + y   Paste the last thing to be cut (yank)
-* [ ] ctrl + _   Undo
+* [ ] ctrl + y   Paste the last thing to be cut (yank).
+* [ ] ctrl + _   Undo.
 
 */
 

@@ -21,7 +21,7 @@ func (b *Buffer) Text() string {
 	return b.workingLines[b.workingIndex]
 }
 
-// NewLineCount returns the number of `\n` in the buffer text
+// NewLineCount returns the number of `\n` in the buffer text.
 func (b *Buffer) NewLineCount() int {
 	return strings.Count(b.Text(), "\n")
 }
@@ -41,7 +41,8 @@ func (b *Buffer) Document() (d *Document) {
 }
 
 // DisplayCursorPosition returns the cursor position on rendered text on terminal emulators.
-// So if Document is "日本(cursor)語", DisplayedCursorPosition returns 4 because '日' and '本' are double width characters.
+// So if Document is "日本(cursor)語", DisplayedCursorPosition returns 4 because '日' and '本' are
+// double width characters.
 func (b *Buffer) DisplayCursorPosition() int {
 	return b.Document().DisplayCursorPosition()
 }
@@ -71,7 +72,8 @@ func (b *Buffer) InsertText(v string, overwrite bool, moveCursor bool) {
 // (When doing this, make sure that the cursor_position is valid for this text.
 // text/cursor_position should be consistent at any time, otherwise set a Document instead.)
 func (b *Buffer) setText(v string) {
-	debug.Assert(b.cursorPosition <= len([]rune(v)), "length of input should be shorter than cursor position")
+	debug.Assert(b.cursorPosition <= len([]rune(v)),
+		"length of input should be shorter than cursor position")
 	// replace CR with LF
 	v = strings.ReplaceAll(v, "\r", "\n")
 	b.workingLines[b.workingIndex] = v
@@ -88,7 +90,8 @@ func (b *Buffer) setCursorPosition(p int) {
 
 func (b *Buffer) setDocument(d *Document) {
 	b.cacheDocument = d
-	b.setCursorPosition(d.cursorPosition) // Call before setText because setText check the relation between cursorPosition and line length.
+	b.setCursorPosition(d.cursorPosition) // Call before setText because setText check the relation
+	// between cursorPosition and line length.
 	b.setText(d.Text)
 }
 
@@ -132,7 +135,8 @@ func (b *Buffer) CursorDown(count int) {
 	b.preferredColumn = orig
 }
 
-// DeleteBeforeCursor delete specified number of characters before cursor and return the deleted text.
+// DeleteBeforeCursor deletes specified number of characters before cursor
+// and returns the deleted text.
 func (b *Buffer) DeleteBeforeCursor(count int) (deleted string) {
 	debug.Assert(count >= 0, "count should be positive")
 	r := []rune(b.Text())
@@ -170,13 +174,15 @@ func (b *Buffer) Delete(count int) (deleted string) {
 	return
 }
 
-// JoinNextLine joins the next line to the current one by deleting the line ending after the current line.
+// JoinNextLine joins the next line to the current one by deleting the line ending after the
+// current line.
 func (b *Buffer) JoinNextLine(separator string) {
 	if !b.Document().OnLastLine() {
 		b.cursorPosition += b.Document().GetEndOfLinePosition()
 		b.Delete(1)
 		// Remove spaces
-		b.setText(b.Document().TextBeforeCursor() + separator + strings.TrimLeft(b.Document().TextAfterCursor(), " "))
+		b.setText(b.Document().TextBeforeCursor() + separator +
+			strings.TrimLeft(b.Document().TextAfterCursor(), " "))
 	}
 }
 

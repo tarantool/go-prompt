@@ -40,7 +40,8 @@ func (d *Document) LastKeyStroke() Key {
 }
 
 // DisplayCursorPosition returns the cursor position on rendered text on terminal emulators.
-// So if Document is "日本(cursor)語", DisplayedCursorPosition returns 4 because '日' and '本' are double width characters.
+// So if Document is "日本(cursor)語", DisplayedCursorPosition returns 4 because '日' and '本' are
+// double width characters.
 func (d *Document) DisplayCursorPosition() int {
 	var position int
 	runes := []rune(d.Text)[:d.cursorPosition]
@@ -174,7 +175,8 @@ func (d *Document) FindStartOfPreviousWordUntilSeparator(sep string) int {
 	return 0
 }
 
-// FindStartOfPreviousWordUntilSeparatorIgnoreNextToCursor is almost the same as FindStartOfPreviousWordWithSpace.
+// FindStartOfPreviousWordUntilSeparatorIgnoreNextToCursor is almost the same as
+// FindStartOfPreviousWordWithSpace.
 // But this can specify Separator. Return 0 if nothing was found.
 func (d *Document) FindStartOfPreviousWordUntilSeparatorIgnoreNextToCursor(sep string) int {
 	if sep == "" {
@@ -237,7 +239,8 @@ func (d *Document) FindEndOfCurrentWordUntilSeparator(sep string) int {
 	return len(x)
 }
 
-// FindEndOfCurrentWordUntilSeparatorIgnoreNextToCursor is almost the same as FindEndOfCurrentWordWithSpace.
+// FindEndOfCurrentWordUntilSeparatorIgnoreNextToCursor is almost the same as
+// FindEndOfCurrentWordWithSpace.
 // But this can specify Separator. Return 0 if nothing was found.
 func (d *Document) FindEndOfCurrentWordUntilSeparatorIgnoreNextToCursor(sep string) int {
 	if sep == "" {
@@ -399,8 +402,8 @@ func (d *Document) GetCursorUpPosition(count int, preferredColumn int) int {
 	return d.TranslateRowColToCursor(row, col) - d.cursorPosition
 }
 
-// GetCursorDownPosition return the relative cursor position (character index) where we would be if the
-// user pressed the arrow-down button.
+// GetCursorDownPosition return the relative cursor position (character index) where we would be if
+// the user pressed the arrow-down button.
 func (d *Document) GetCursorDownPosition(count int, preferredColumn int) int {
 	var col int
 	if preferredColumn == -1 { // -1 means nil

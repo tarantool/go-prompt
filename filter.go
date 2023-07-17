@@ -22,8 +22,7 @@ func FilterContains(completions []Suggest, sub string, ignoreCase bool) []Sugges
 
 // FilterFuzzy checks whether the completion.Text fuzzy matches sub.
 // Fuzzy searching for "dog" is equivalent to "*d*o*g*". This search term
-// would match, for example, "Good food is gone"
-//                               ^  ^      ^
+// would match, for example: "Goo[d] f[o]od is [g]one".
 func FilterFuzzy(completions []Suggest, sub string, ignoreCase bool) []Suggest {
 	return filterSuggestions(completions, sub, ignoreCase, fuzzyMatch)
 }
@@ -49,7 +48,11 @@ func fuzzyMatch(s, sub string) bool {
 	return true
 }
 
-func filterSuggestions(suggestions []Suggest, sub string, ignoreCase bool, function func(string, string) bool) []Suggest {
+func filterSuggestions(
+	suggestions []Suggest,
+	sub string,
+	ignoreCase bool,
+	function func(string, string) bool) []Suggest {
 	if sub == "" {
 		return suggestions
 	}
