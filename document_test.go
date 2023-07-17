@@ -1110,7 +1110,8 @@ func TestDocument_CursorPositionRowAndCol(t *testing.T) {
 		expectedCol int
 	}{
 		{
-			document:    &Document{Text: "line 1\nline 2\nline 3\n", cursorPosition: len("line 1\n" + "lin")},
+			document: &Document{Text: "line 1\nline 2\nline 3\n",
+				cursorPosition: len("line 1\n" + "lin")},
 			expectedRow: 1,
 			expectedCol: 3,
 		},

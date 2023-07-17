@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package prompt
@@ -15,7 +16,7 @@ type PosixWriter struct {
 	fd int
 }
 
-// Flush to flush buffer
+// Flush to flush buffer.
 func (w *PosixWriter) Flush() error {
 	l := len(w.buffer)
 	offset := 0
@@ -44,7 +45,7 @@ var (
 	// NewStandardOutputWriter returns ConsoleWriter object to write to stdout.
 	// This generates VT100 escape sequences because almost terminal emulators
 	// in POSIX OS built on top of a VT100 specification.
-	// Deprecated: Please use NewStdoutWriter
+	// Deprecated: Please use NewStdoutWriter.
 	NewStandardOutputWriter = NewStdoutWriter
 )
 

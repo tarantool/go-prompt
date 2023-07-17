@@ -97,7 +97,8 @@ func (r *Render) renderCompletion(ctx renderCtx) {
 	if windowHeight > int(ctx.completion.max) {
 		windowHeight = int(ctx.completion.max)
 	}
-	formatted = formatted[ctx.completion.verticalScroll : ctx.completion.verticalScroll+windowHeight]
+	formatted = formatted[ctx.completion.verticalScroll : ctx.completion.verticalScroll+
+		windowHeight]
 	r.prepareArea(windowHeight)
 
 	cursor := runewidth.StringWidth(ctx.cmd.Document().TextBeforeCursor())
@@ -156,7 +157,7 @@ func (r *Render) renderCompletion(ctx renderCtx) {
 	r.out.SetColor(DefaultColor, DefaultColor, false)
 }
 
-// ClearScreen :: Clears the screen and moves the cursor to home
+// ClearScreen clears the screen and moves the cursor to home.
 func (r *Render) ClearScreen() {
 	r.out.EraseScreen()
 	r.out.CursorGoTo(0, 0)

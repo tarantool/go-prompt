@@ -25,7 +25,7 @@ const (
 	DisplayLowIntensity
 	// DisplayItalic set italic. Not widely supported.
 	DisplayItalic
-	// DisplayUnderline set underline
+	// DisplayUnderline set underline.
 	DisplayUnderline
 	// DisplayBlink set blink (less than 150 per minute).
 	DisplayBlink
@@ -37,7 +37,7 @@ const (
 	DisplayInvisible
 	// DisplayCrossedOut set characters legible, but marked for deletion. Not widely supported.
 	DisplayCrossedOut
-	// DisplayDefaultFont set primary(default) font
+	// DisplayDefaultFont set primary(default) font.
 	DisplayDefaultFont
 )
 
@@ -48,7 +48,7 @@ const (
 	// DefaultColor represents a default color.
 	DefaultColor Color = iota
 
-	// Low intensity
+	// Low intensity.
 
 	// Black represents a black.
 	Black
@@ -67,7 +67,7 @@ const (
 	// LightGray represents a light gray.
 	LightGray
 
-	// High intensity
+	// High intensity.
 
 	// DarkGray represents a dark gray.
 	DarkGray

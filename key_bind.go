@@ -9,7 +9,7 @@ type KeyBind struct {
 	Fn  KeyBindFunc
 }
 
-// ASCIICodeBind represents which []byte should do what operation
+// ASCIICodeBind represents which []byte should do what operation.
 type ASCIICodeBind struct {
 	ASCIICode []byte
 	Fn        KeyBindFunc
@@ -19,9 +19,9 @@ type ASCIICodeBind struct {
 type KeyBindMode string
 
 const (
-	// CommonKeyBind is a mode without any keyboard shortcut
+	// CommonKeyBind is a mode without any keyboard shortcut.
 	CommonKeyBind KeyBindMode = "common"
-	// EmacsKeyBind is a mode to use emacs-like keyboard shortcut
+	// EmacsKeyBind is a mode to use emacs-like keyboard shortcut.
 	EmacsKeyBind KeyBindMode = "emacs"
 )
 

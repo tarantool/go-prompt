@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// SetRaw put terminal into a raw mode
+// SetRaw put terminal into a raw mode.
 func SetRaw(fd int) error {
 	originalTermios, err := getOriginalTermios(fd)
 	if err != nil {

@@ -133,7 +133,8 @@ func TestFilter(t *testing.T) {
 	}
 
 	for _, s := range scenarioTable {
-		if actual := s.filter(s.list, s.substr, s.ignoreCase); !reflect.DeepEqual(actual, s.expected) {
+		if actual := s.filter(s.list, s.substr, s.ignoreCase); !reflect.DeepEqual(
+			actual, s.expected) {
 			t.Errorf("%s: Should be %#v, but got %#v", s.scenario, s.expected, actual)
 		}
 	}
@@ -158,7 +159,8 @@ func TestFuzzyMatch(t *testing.T) {
 
 	for _, test := range tests {
 		if fuzzyMatch(test.s, test.sub) != test.match {
-			t.Errorf("fuzzymatch, %s in %s: expected %v, got %v", test.sub, test.s, test.match, !test.match)
+			t.Errorf("fuzzymatch, %s in %s: expected %v, got %v",
+				test.sub, test.s, test.match, !test.match)
 		}
 	}
 }

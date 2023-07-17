@@ -10,7 +10,7 @@ type VT100Writer struct {
 	buffer []byte
 }
 
-// WriteRaw to write raw byte array
+// WriteRaw to write raw byte array.
 func (w *VT100Writer) WriteRaw(data []byte) {
 	w.buffer = append(w.buffer, data...)
 }
@@ -20,7 +20,7 @@ func (w *VT100Writer) Write(data []byte) {
 	w.WriteRaw(bytes.Replace(data, []byte{0x1b}, []byte{'?'}, -1))
 }
 
-// WriteRawStr to write raw string
+// WriteRawStr to write raw string.
 func (w *VT100Writer) WriteRawStr(data string) {
 	w.WriteRaw([]byte(data))
 }
@@ -30,7 +30,7 @@ func (w *VT100Writer) WriteStr(data string) {
 	w.Write([]byte(data))
 }
 
-/* Erase */
+/* Erase. */
 
 // EraseScreen erases the screen with the background colour and moves the cursor to home.
 func (w *VT100Writer) EraseScreen() {
@@ -62,7 +62,7 @@ func (w *VT100Writer) EraseLine() {
 	w.WriteRaw([]byte{0x1b, '[', '2', 'K'})
 }
 
-/* Cursor */
+/* Cursor. */
 
 // ShowCursor stops blinking cursor and show.
 func (w *VT100Writer) ShowCursor() {
@@ -77,7 +77,8 @@ func (w *VT100Writer) HideCursor() {
 // CursorGoTo sets the cursor position where subsequent text will begin.
 func (w *VT100Writer) CursorGoTo(row, col int) {
 	if row == 0 && col == 0 {
-		// If no row/column parameters are provided (ie. <ESC>[H), the cursor will move to the home position.
+		// If no row/column parameters are provided (ie. <ESC>[H), the cursor will move to the home
+		// position.
 		w.WriteRaw([]byte{0x1b, '[', 'H'})
 		return
 	}
@@ -162,7 +163,7 @@ func (w *VT100Writer) UnSaveCursor() {
 	w.WriteRaw([]byte{0x1b, '[', 'u'})
 }
 
-/* Scrolling */
+/* Scrolling. */
 
 // ScrollDown scrolls display down one line.
 func (w *VT100Writer) ScrollDown() {
@@ -174,7 +175,7 @@ func (w *VT100Writer) ScrollUp() {
 	w.WriteRaw([]byte{0x1b, 'M'})
 }
 
-/* Title */
+/* Title. */
 
 // SetTitle sets a title of terminal window.
 func (w *VT100Writer) SetTitle(title string) {
@@ -206,7 +207,7 @@ func (w *VT100Writer) ClearTitle() {
 	w.WriteRaw([]byte{0x1b, ']', '2', ';', 0x07})
 }
 
-/* Font */
+/* Font. */
 
 // SetColor sets text and background colors. and specify whether text is bold.
 func (w *VT100Writer) SetColor(fg, bg Color, bold bool) {

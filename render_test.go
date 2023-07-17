@@ -78,7 +78,8 @@ func TestBreakLineCallback(t *testing.T) {
 	var i int
 	r := &Render{
 		out: &PosixWriter{
-			fd: syscall.Stdin, // "write" to stdin just so we don't mess with the output of the tests
+			fd: syscall.Stdin, // "write" to stdin just so we don't mess with the output of the
+			// tests
 		},
 		prefixTextColor:              Blue,
 		prefixBGColor:                DefaultColor,

@@ -6,7 +6,6 @@ import uuid
 
 import py
 import pytest
-
 from prompt_app import PromptApp
 
 
