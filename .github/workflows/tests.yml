@@ -1,0 +1,58 @@
+---
+name: Tests
+
+on: [push, pull_request]
+
+env:
+  GO_VERSION: 1.14
+  PYTHON_VERSION: '3.x'
+
+jobs:
+  tests:
+    if: |
+      (github.event_name == 'push') ||
+      (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.owner.login != 'tarantool')
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Prepare env
+        uses: ./.github/actions/prepare-test-env
+
+      - name: Static code check
+        uses: ./.github/actions/static-code-check
+
+      - name: Unit tests
+        run:  make test
+
+      - name: Integration tests
+        run:  |
+          source ./venv/bin/activate
+          make integration
+
+  tests-mac-os:
+    if: |
+      (github.event_name == 'push') ||
+      (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.owner.login != 'tarantool')
+    runs-on: macos-12
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Prepare env
+        uses: ./.github/actions/prepare-test-env
+
+      - name: Install additional dependencies
+        run: brew install tmux
+
+      - name: Static code check
+        uses: ./.github/actions/static-code-check
+
+      - name: Unit tests
+        run:  make test
+
+      - name: Integration tests
+        run:  |
+          source ./venv/bin/activate
+          make integration
