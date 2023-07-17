@@ -1,0 +1,30 @@
+run:
+  timeout: 3m
+
+linters:
+  disable-all: true
+  enable:
+    - lll
+    - govet
+    - gofmt
+    - stylecheck
+    - godot
+
+linters-settings:
+  lll:
+    line-length: 100
+    tab-width: 4
+  gofmt:
+    simplify: false
+  stylecheck:
+# Temporary disable "Poorly chosen identifier" check.
+    checks: ["all", "-ST1003"]
+  godot:
+    scope: toplevel
+    period: true
+
+issues:
+  exclude-rules:
+    - linters:
+      - lll
+      source: "\t?// (see )?https://"
