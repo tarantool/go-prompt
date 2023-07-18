@@ -1,0 +1,50 @@
+- cmd: |
+    hello
+     world
+    а также
+        мир!
+  pane: |
+    prompt_app> hello
+     world
+    а также
+        мир!
+
+- cmd: [C-w]
+  pane: |
+    prompt_app> hello
+     world
+    а также
+  cursor: [4, 3]
+
+- cmd: [M-b, M-b, C-k]
+  pane: |
+    prompt_app> hello
+     world
+    
+- cmd: |
+    дополнительные
+    много
+    строчек, да!
+
+- cmd: [M-b, C-u]
+  pane: |
+    prompt_app> да!
+
+- cmd: [C-d, C-d]
+  pane: |
+    prompt_app> !
+
+- cmd: |
+    снова
+    много строчек
+    а б в г д е
+
+- cmd: [C-w, C-w, C-w, C-w, C-w]
+  pane: |
+    prompt_app> снова
+    много строчек
+    а !
+
+- cmd: [C-k, C-w, C-w, C-w, C-w, C-w, C-w, C-w, C-w] # too many
+  pane: |
+    prompt_app>
