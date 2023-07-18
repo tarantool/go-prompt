@@ -56,13 +56,26 @@ func GoLeftChar(buf *Buffer) {
 	buf.CursorLeft(1)
 }
 
-// GoRightWord Forward one word.
+// GoRightWord moves the cursor to the end of the next word.
 func GoRightWord(buf *Buffer) {
-	buf.CursorRight(buf.Document().FindEndOfCurrentWordWithSpace())
+	buf.setCursorPosition(buf.Document().FindWordEndForwardCursor(func(r rune) bool {
+		return r != '\n' && r != ' '
+	}))
 }
 
-// GoLeftWord Backward one word.
+// GoLeftWord moves the cursor to the beginning of the previous word.
 func GoLeftWord(buf *Buffer) {
-	buf.CursorLeft(len([]rune(buf.Document().TextBeforeCursor())) - buf.Document().
-		FindStartOfPreviousWordWithSpace())
+	buf.setCursorPosition(buf.Document().FindWordStartBackwardCursor(func(r rune) bool {
+		return r != '\n' && r != ' '
+	}))
+}
+
+// GoCmdBeginning moves the cursor to the beginning of the command.
+func GoCmdBeginning(buf *Buffer) {
+	buf.setCursorPosition(0)
+}
+
+// GoCmdEnd moves the cursor to the end of the command.
+func GoCmdEnd(buf *Buffer) {
+	buf.setCursorPosition(len([]rune(buf.Text())))
 }
