@@ -23,50 +23,57 @@ prompt_app> русский язык"""
     assert prompt.dump_workspace() == expected
 
 
-def test_remove_text(prompt):
+@pytest.mark.parametrize("erase_key", ["C-h", "BSpace"])
+def test_remove_text(prompt, erase_key):
     prompt.send_keys("##### e хай hello")
     prompt.send_keys(["Left"] * 9)
-    prompt.send_keys(["C-h"] * 7)
+    prompt.send_keys([erase_key] * 7)
     assert prompt.get_cursor() == (13, 0)
 
     expected = "prompt_app> #хай hello"
     assert prompt.dump_workspace() == expected
 
-    prompt.send_keys(["C-h"] * 2)
+    prompt.send_keys([erase_key] * 2)
     assert prompt.get_cursor() == (12, 0)
     expected2 = "prompt_app> хай hello"
     assert prompt.dump_workspace() == expected2
 
 
-def test_move_over_input(prompt):
+@pytest.mark.parametrize("left_key, right_key", [
+    pytest.param("Left", "Right"),
+    pytest.param("C-b", "C-f")  # emacs
+])
+def test_move_over_input(prompt, left_key, right_key):
     prompt.send_keys("hello!")
-    prompt.send_keys(["Left"] * 2)
+    prompt.send_keys([left_key] * 2)
     assert prompt.get_cursor() == (16, 0)
 
-    prompt.send_keys(["Left"] * 10)
+    prompt.send_keys([left_key] * 10)
     assert prompt.get_cursor() == (12, 0)
 
-    prompt.send_keys(["Right"] * 7)
+    prompt.send_keys([right_key] * 7)
     assert prompt.get_cursor() == (18, 0)
 
     prompt.send_keys("слово")
-    prompt.send_keys(["Left"] * 3)
+    prompt.send_keys([left_key] * 3)
     assert prompt.get_cursor() == (20, 0)
 
     expected = "prompt_app> hello!слово"
     assert prompt.dump_workspace() == expected
 
 
+@pytest.mark.parametrize("left_key", ["Left", "C-b"])
+@pytest.mark.parametrize("erase_key", ["BSpace", "C-h"])
 @pytest.mark.parametrize("prompt", [{"x": "100"}], indirect=True)
-def test_multiline_commands(prompt):
+def test_multiline_commands(prompt, left_key, erase_key):
     prompt.send_keys("строка1\nline2\nline3a")
     assert prompt.get_cursor() == (6, 2)
 
-    prompt.send_keys(["Left"] * 7)
+    prompt.send_keys([left_key] * 7)
     assert prompt.get_cursor() == (5, 1)
 
-    prompt.send_keys(["Left"] * 4)
-    prompt.send_keys(["C-h"] * 2)
+    prompt.send_keys([left_key] * 4)
+    prompt.send_keys([erase_key] * 2)
     assert prompt.get_cursor() == (19, 0)
 
     expected = """prompt_app> строка1ine2
@@ -249,3 +256,84 @@ def test_console_not_broken(prompt):
     prompt.send_keys(["exit", "text"])
     expected = """prompt_app> exittext"""
     assert prompt.dump_workspace() == expected
+
+
+@pytest.mark.parametrize("home_key, end_key", [
+    pytest.param("Home", "End"),
+    pytest.param("C-a", "C-e"),  # emacs
+])
+def test_home_end_keys(prompt, home_key, end_key):
+    cmd = """здравствуй,
+nebo
+в облаках"""
+    prompt.send_keys(cmd)
+    assert prompt.get_cursor() == (9, 2)
+
+    prompt.send_keys(home_key)
+    assert prompt.get_cursor() == (12, 0)
+
+    prompt.send_keys(["Right"] * 7 + [home_key])
+    assert prompt.get_cursor() == (12, 0)
+
+    prompt.send_keys(end_key)
+    assert prompt.get_cursor() == (9, 2)
+
+    prompt.send_keys(["Left"] * 9 + [end_key])
+    assert prompt.get_cursor() == (9, 2)
+
+    prompt.send_keys(["\n-текст"])
+    expected = """prompt_app> здравствуй,
+nebo
+в облаках
+-текст"""
+    assert prompt.dump_workspace() == expected
+
+
+@pytest.mark.parametrize("word_left_key, word_right_key", [
+    pytest.param("M-b", "M-f")
+])
+def test_go_left_right_word(prompt, word_left_key, word_right_key):
+    cmd = """a b c d
+слово1 слово2 слово3   слово4
+d
+
+
+б"""
+    # Go left from the end.
+    cmds = [
+        [cmd, word_left_key],
+        word_left_key,
+        word_left_key,
+        ["Left", "Left", word_left_key],
+        [word_left_key] * 6
+    ]
+    cursors = [
+        (0, 5),
+        (0, 2),
+        (23, 1),
+        (14, 1),
+        (12, 0),
+    ]
+    for cmd, cursor in zip(cmds, cursors):
+        prompt.send_keys(cmd)
+        assert prompt.get_cursor() == cursor
+
+    # Go right from the beginning.
+    cmds = [
+        word_right_key,
+        word_right_key,
+        [word_right_key] * 5,
+        ["Right", "Right", word_right_key],
+        [word_right_key] * 2
+    ]
+    cursors = [
+        (13, 0),
+        (15, 0),
+        (20, 1),
+        (29, 1),
+        (1, 5),
+    ]
+
+    for cmd, cursor in zip(cmds, cursors):
+        prompt.send_keys(cmd)
+        assert prompt.get_cursor() == cursor

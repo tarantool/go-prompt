@@ -29,12 +29,12 @@ var commonKeyBindings = []KeyBind{
 	// Go to the End of the line
 	{
 		Key: End,
-		Fn:  GoLineEnd,
+		Fn:  GoCmdEnd,
 	},
 	// Go to the beginning of the line
 	{
 		Key: Home,
-		Fn:  GoLineBeginning,
+		Fn:  GoCmdBeginning,
 	},
 	// Delete character under the cursor
 	{

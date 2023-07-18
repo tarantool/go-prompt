@@ -42,18 +42,12 @@ var emacsKeyBindings = []KeyBind{
 	// Go to the End of the line
 	{
 		Key: ControlE,
-		Fn: func(buf *Buffer) {
-			x := []rune(buf.Document().TextAfterCursor())
-			buf.CursorRight(len(x))
-		},
+		Fn:  GoCmdEnd,
 	},
 	// Go to the beginning of the line
 	{
 		Key: ControlA,
-		Fn: func(buf *Buffer) {
-			x := []rune(buf.Document().TextBeforeCursor())
-			buf.CursorLeft(len(x))
-		},
+		Fn:  GoCmdBeginning,
 	},
 	// Cut the Line after the cursor
 	{
@@ -90,16 +84,12 @@ var emacsKeyBindings = []KeyBind{
 	// Right allow: Forward one character
 	{
 		Key: ControlF,
-		Fn: func(buf *Buffer) {
-			buf.CursorRight(1)
-		},
+		Fn:  GoRightChar,
 	},
 	// Left allow: Backward one character
 	{
 		Key: ControlB,
-		Fn: func(buf *Buffer) {
-			buf.CursorLeft(1)
-		},
+		Fn:  GoLeftChar,
 	},
 	// Cut the Word before the cursor.
 	{

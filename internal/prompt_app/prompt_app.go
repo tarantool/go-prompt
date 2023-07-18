@@ -9,6 +9,16 @@ import (
 	"github.com/c-bata/go-prompt"
 )
 
+var (
+	ControlLeftBytes  []byte
+	ControlRightBytes []byte
+)
+
+func init() {
+	ControlLeftBytes = []byte{0x1b, 0x62}
+	ControlRightBytes = []byte{0x1b, 0x66}
+}
+
 // Console describes the console.
 type Console struct {
 	title             string
@@ -81,6 +91,23 @@ func getPromptOptions(console *Console) []prompt.Option {
 
 		prompt.OptionDisableAutoHistory(),
 		prompt.OptionReverseSearch(),
+
+		prompt.OptionAddASCIICodeBind(
+			// Move to one word left.
+			prompt.ASCIICodeBind{
+				ASCIICode: ControlLeftBytes,
+				Fn: func(buf *prompt.Buffer) {
+					prompt.GoLeftWord(buf)
+				},
+			},
+			// Move to one word right.
+			prompt.ASCIICodeBind{
+				ASCIICode: ControlRightBytes,
+				Fn: func(buf *prompt.Buffer) {
+					prompt.GoRightWord(buf)
+				},
+			},
+		),
 	}
 	args := os.Args
 	if len(args) > 1 {

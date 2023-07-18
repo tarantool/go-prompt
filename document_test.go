@@ -1476,3 +1476,113 @@ func Test_GetCustomCursorPosition(t *testing.T) {
 		})
 	}
 }
+
+func TestFindWordStartBackwardCursor(t *testing.T) {
+	isWordPart := func(r rune) bool {
+		return r != '\n' && r != ' '
+	}
+	cases := []struct {
+		description    string
+		input          string
+		cursor         int
+		expectedCursor int
+	}{
+		{
+			"wo[r]d  -> [w]ord",
+			"word",
+			2,
+			0,
+		},
+		{
+			" word[] -> [w]ord ",
+			" word  ",
+			5,
+			1,
+		},
+		{
+			"строка 1\n[с]трока2\nстрока3 -> строка [1]\nстрока2\nстрока3",
+			"строка 1\nстрока2\nстрока3 ",
+			9,
+			7,
+		},
+		{
+			"слово\nслово2\n[с]лово3 -> слово\n[с]лово2\nслово3",
+			"слово\nслово2\nслово3",
+			13,
+			6,
+		},
+		{
+			"some long []  line -> some [l]ong    line",
+			"some long    line",
+			10,
+			5,
+		},
+		{
+			"[] -> []",
+			"",
+			0,
+			0,
+		},
+		{
+			"a\n\n\n\n\n\n[b]a -> [a]\n\n\n\n\n\nba",
+			"a\n\n\n\n\n\nba",
+			7,
+			0,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.description, func(t *testing.T) {
+			d := Document{Text: tc.input, cursorPosition: tc.cursor}
+			assert.Equal(t, tc.expectedCursor, d.FindWordStartBackwardCursor(isWordPart))
+		})
+	}
+}
+
+func TestFindWordEndForwardCursor(t *testing.T) {
+	isWordPart := func(r rune) bool {
+		return r != '\n' && r != ' '
+	}
+	cases := []struct {
+		description    string
+		input          string
+		cursor         int
+		expectedCursor int
+	}{
+		{
+			"wo[r]d -> word[]",
+			"word",
+			2,
+			4,
+		},
+		{
+			" []  word ->    word[]",
+			"    word",
+			1,
+			8,
+		},
+		{
+			"строка1\n[]строка2\nстрока3 -> строка1\n строка2[\n]строка3",
+			"строка1\n строка2\nстрока3",
+			8,
+			16,
+		},
+		{
+			"[] -> []",
+			"",
+			0,
+			0,
+		},
+		{
+			"[\n]\n\n\nслово->\n\n\n\nслово[]",
+			"\n\n\n\nслово",
+			0,
+			9,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.description, func(t *testing.T) {
+			d := Document{Text: tc.input, cursorPosition: tc.cursor}
+			assert.Equal(t, tc.expectedCursor, d.FindWordEndForwardCursor(isWordPart))
+		})
+	}
+}

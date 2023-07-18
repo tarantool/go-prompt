@@ -144,6 +144,36 @@ func (d *Document) FindStartOfPreviousWord() int {
 	return 0
 }
 
+// FindWordStartBackwardCursor finds the start of the word moving backward,
+// returns the associated cursor position.
+// Determines whether a rune is part of a word using `isWordPart`.
+func (d *Document) FindWordStartBackwardCursor(isWordPart func(rune) bool) int {
+	textBeforeCursor := []rune(d.TextBeforeCursor())
+	cursor := len(textBeforeCursor) - 1
+	for cursor >= 0 && !isWordPart(textBeforeCursor[cursor]) {
+		cursor--
+	}
+	for cursor >= 0 && isWordPart(textBeforeCursor[cursor]) {
+		cursor--
+	}
+	return cursor + 1
+}
+
+// FindWordEndForwardCursor finds the end of the word moving forward,
+// returns the cursor position exactly after the end.
+// Determines whether a rune is part of a word using `isWordPart`.
+func (d *Document) FindWordEndForwardCursor(isWordPart func(rune) bool) int {
+	textAfterCursor := []rune(d.TextAfterCursor())
+	cursor := 0
+	for cursor < len(textAfterCursor) && !isWordPart(textAfterCursor[cursor]) {
+		cursor++
+	}
+	for cursor < len(textAfterCursor) && isWordPart(textAfterCursor[cursor]) {
+		cursor++
+	}
+	return d.cursorPosition + cursor
+}
+
 // FindStartOfPreviousWordWithSpace is almost the same as FindStartOfPreviousWord.
 // The only difference is to ignore contiguous spaces.
 func (d *Document) FindStartOfPreviousWordWithSpace() int {
