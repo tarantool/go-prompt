@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/c-bata/go-prompt"
+	"github.com/tarantool/go-prompt"
 )
 
 var (
