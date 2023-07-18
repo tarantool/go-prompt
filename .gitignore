@@ -29,3 +29,9 @@ vendor/
 # Pytest
 .pytest_cache
 __pycache__
+
+# testing app
+prompt_app
+
+# venv
+venv
