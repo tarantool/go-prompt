@@ -4,10 +4,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/c-bata/go-prompt/internal/bisect"
-	"github.com/c-bata/go-prompt/internal/debug"
-	istrings "github.com/c-bata/go-prompt/internal/strings"
 	runewidth "github.com/mattn/go-runewidth"
+	"github.com/tarantool/go-prompt/internal/bisect"
+	"github.com/tarantool/go-prompt/internal/debug"
+	istrings "github.com/tarantool/go-prompt/internal/strings"
 )
 
 // Document has text displayed in terminal and cursor position.
