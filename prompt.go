@@ -236,7 +236,7 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 				p.buf = newBuf
 			}
 		}
-	case Left, Right:
+	case Left, Right, ControlB, ControlF:
 		if p.inReverseSearchMode() {
 			p.disableReverseSearch()
 		}
