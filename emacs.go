@@ -39,17 +39,17 @@ Editing
 */
 
 var emacsKeyBindings = []KeyBind{
-	// Go to the End of the line
+	// Go to the End of the command.
 	{
 		Key: ControlE,
 		Fn:  GoCmdEnd,
 	},
-	// Go to the beginning of the line
+	// Go to the beginning of the command.
 	{
 		Key: ControlA,
 		Fn:  GoCmdBeginning,
 	},
-	// Cut the Line after the cursor
+	// Cut the command after the cursor.
 	{
 		Key: ControlK,
 		Fn: func(buf *Buffer) {
@@ -57,7 +57,7 @@ var emacsKeyBindings = []KeyBind{
 			buf.Delete(len(x))
 		},
 	},
-	// Cut/delete the Line before the cursor
+	// Cut the command before the cursor.
 	{
 		Key: ControlU,
 		Fn: func(buf *Buffer) {
@@ -65,7 +65,7 @@ var emacsKeyBindings = []KeyBind{
 			buf.DeleteBeforeCursor(len(x))
 		},
 	},
-	// Delete character under the cursor
+	// Delete character under the cursor.
 	{
 		Key: ControlD,
 		Fn: func(buf *Buffer) {
@@ -74,19 +74,19 @@ var emacsKeyBindings = []KeyBind{
 			}
 		},
 	},
-	// Backspace
+	// Backspace.
 	{
 		Key: ControlH,
 		Fn: func(buf *Buffer) {
 			buf.DeleteBeforeCursor(1)
 		},
 	},
-	// Right allow: Forward one character
+	// Right allow: Forward one character.
 	{
 		Key: ControlF,
 		Fn:  GoRightChar,
 	},
-	// Left allow: Backward one character
+	// Left allow: Backward one character.
 	{
 		Key: ControlB,
 		Fn:  GoLeftChar,

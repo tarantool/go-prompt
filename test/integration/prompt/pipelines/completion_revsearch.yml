@@ -1,0 +1,71 @@
+- cmd: [a]
+  pane: |
+    prompt_app> a
+                  abc
+                  aad
+                  aba
+                  aart
+                  apple
+- cmd: [b]
+  pane: |
+    prompt_app> ab
+                   abc
+                   aba
+
+- cmd: [Tab, Tab]
+  pane: |
+    prompt_app> aba
+                   abc
+                   aba
+
+- cmd: [Enter]
+  pane: |
+    prompt_app> aba
+    cmd: aba
+    prompt_app>
+
+- cmd: [C-r, q]
+  pane: |
+    prompt_app> aba
+    cmd: aba
+    (failed reverse-i-search)`q':
+
+- cmd: [Left, C-l]
+  pane: |
+    prompt_app>
+
+- cmd: [C-r, a]
+  pane: |
+    (reverse-i-search)`a':aba
+
+- cmd: [Enter]
+  pane: |
+    prompt_app> aba
+    cmd: aba
+    prompt_app>
+
+- cmd: ["if some then\nprint(один)", Enter]
+
+- cmd: ["if some then\nprint(три)\nelse\nprint(четыре)", Enter, C-l]
+  pane: |
+    prompt_app> 
+
+- cmd: [C-r, pri]
+  pane: |
+    (reverse-i-search)`pri':if some then
+    print(три)
+    else
+    print(четыре)
+
+- cmd: [C-r]
+  pane: |
+    (reverse-i-search)`pri':if some then
+    print(один)
+
+- cmd: [Enter]
+  pane: |
+    prompt_app> if some then
+    print(один)
+    cmd: if some then
+    print(один)
+    prompt_app>

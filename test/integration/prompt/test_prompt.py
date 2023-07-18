@@ -1,4 +1,7 @@
+import os
+
 import pytest
+import yaml
 
 DEFAULT_KEYS = {
     "Left": "Left",
@@ -363,3 +366,26 @@ d
     for cmd, cursor in zip(cmds, cursors):
         prompt.send_keys(cmd)
         assert prompt.get_cursor() == cursor
+
+
+@pytest.mark.parametrize("keys", [DEFAULT_KEYS, EMACS_KEYS])
+@pytest.mark.parametrize("pipeline_file", [
+    "completion_revsearch.yml",
+    "erase_manipulations.yml"
+])
+def test_pipeline(prompt, pipeline_file, keys):
+    test_files_path = os.path.relpath(
+        os.path.join(os.path.dirname(__file__), "pipelines"))
+    with open(os.path.join(test_files_path, pipeline_file)) as pipeline_data:
+        pipeline = yaml.safe_load(pipeline_data)
+    for step in pipeline:
+        cmd = step["cmd"]
+        for i in range(len(cmd)):
+            if cmd[i] in keys:
+                cmd[i] = keys[cmd[i]]
+        prompt.send_keys(cmd)
+        if "cursor" in step:
+            x, y = step["cursor"]
+            assert prompt.get_cursor() == (x, y)
+        if "pane" in step:
+            assert prompt.dump_workspace() == step["pane"].strip()
