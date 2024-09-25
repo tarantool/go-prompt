@@ -66,6 +66,10 @@ func (c *CompletionManager) Reset() {
 // Update to update the suggestions.
 func (c *CompletionManager) Update(in Document) {
 	c.tmp = c.completer(in)
+	if c.selected >= len(c.tmp) {
+		c.selected = -1
+		c.verticalScroll = 0
+	}
 }
 
 // Previous to select the previous suggestion item.
