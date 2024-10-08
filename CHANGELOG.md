@@ -1,14 +1,22 @@
 # Change Log
 
+## v1.0.1 (2024/10/09)
+
+### Fixed
+
+* Crash after a completion update with a smaller suggestion [pull #14](https://github.com/tarantool/go-prompt/pull/14).
+
 ## v1.0.0 (2023/07/19)
 
 ### Added
+
 * Support for multi-line commands.
 * Support for tab characters in commands.
 * Integration tests.
 * Reverse search.
 
 ### Fixed
+
 * Terminal failure after exiting.
 
 ## v0.2.3 (2018/10/25)
