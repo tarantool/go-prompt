@@ -1,10 +1,17 @@
 package prompt
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestSearchPrefixFmt(t *testing.T) {
+	// The space after ':' is required to match the GNU readline output.
+	assert.Equal(t, "(reverse-i-search)`abc': ", fmt.Sprintf(matchSearchPrefixFmt, "abc"))
+	assert.Equal(t, "(failed reverse-i-search)`abc': ", fmt.Sprintf(failSearchPrefixFmt, "abc"))
+}
 
 func TestRevSearch(t *testing.T) {
 	history := NewHistory()

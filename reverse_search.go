@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	matchSearchPrefixFmt = "(reverse-i-search)`%s':"
-	failSearchPrefixFmt  = "(failed reverse-i-search)`%s':"
+	matchSearchPrefixFmt = "(reverse-i-search)`%s': "
+	failSearchPrefixFmt  = "(failed reverse-i-search)`%s': "
 )
 
 // reverseSearchState contains info about reverseSearch state.
