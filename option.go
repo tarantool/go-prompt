@@ -303,6 +303,29 @@ func OptionDisableAutoHistory() Option {
 	}
 }
 
+// OptionBracketedPaste asks the terminal to mark pastes (the bracketed paste
+// mode) while the prompt reads. A pasted text is then text, even when the
+// terminal sends it in pieces: no key in it is acted on, its tabs are
+// inserted, its other control characters are dropped, and its line breaks
+// are taken as OptionExecutePastedLines says.
+func OptionBracketedPaste() Option {
+	return func(p *Prompt) error {
+		p.isBracketedPasteEnabled = true
+		return nil
+	}
+}
+
+// OptionExecutePastedLines makes a line break that comes with other keys, as
+// in a paste, Enter: every line of a paste is executed in turn, as if it were
+// typed, and the text after the last line break is left in the buffer.
+// Without it such a line break is a line break of a multi-line command.
+func OptionExecutePastedLines() Option {
+	return func(p *Prompt) error {
+		p.lexer.lineBreakIsEnter = true
+		return nil
+	}
+}
+
 // OptionEnableRenderSubscribeMode enables a subscription to rendering updates.
 func OptionEnableRenderSubscribeMode(socketUri string) Option {
 	return func(prompt *Prompt) error {
