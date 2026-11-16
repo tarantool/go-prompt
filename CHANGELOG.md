@@ -1,5 +1,22 @@
 # Change Log
 
+## Unreleased
+
+### Added
+
+* `OptionExecutePastedLines`: a line break that comes with other keys, as in
+  a paste, is Enter, so every pasted line is executed as if it were typed.
+* `OptionBracketedPaste`: the terminal marks pastes, and a pasted text is
+  inserted as text, even if the terminal sends it in pieces.
+
+### Fixed
+
+* Keys that come in one read, as in a paste or in fast typing, are handled
+  one by one: an arrow, Backspace or a key binding after text is no longer
+  inserted as text.
+* A read that ends in the middle of a character or of an escape sequence is
+  completed by the next one.
+
 ## v1.0.1 (2024/10/09)
 
 ### Fixed

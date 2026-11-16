@@ -95,6 +95,17 @@ type Prompt struct {
 
 	// notifyConn is a connection used for rendering notifications.
 	notifyConn net.Conn
+
+	// isBracketedPasteEnabled is true if the terminal is asked to mark
+	// pastes.
+	isBracketedPasteEnabled bool
+
+	// lexer cuts what is read from the terminal into keys.
+	lexer inputLexer
+
+	// pending holds the keys read but not fed yet: those after an Enter
+	// wait until the command before them is executed.
+	pending []inputToken
 }
 
 // Exec is the struct contains user input context.
@@ -130,44 +141,74 @@ func (p *Prompt) Run() {
 	stopHandleSignalCh := make(chan struct{})
 	go p.handleSignals(exitCh, winSizeCh, stopHandleSignalCh)
 
-	for {
-		select {
-		case b := <-bufCh:
-			shouldExit, e := p.feed(b)
-
-			// Run onUpdate hook.
-			p.onInputUpdate()
+	// feedPending feeds the keys read, executing a command at every Enter,
+	// and reports whether the prompt must stop.
+	feedPending := func() bool {
+		updated := true
+		for len(p.pending) > 0 {
+			shouldExit, e := p.feedNext(updated)
+			updated = false
 
 			if shouldExit {
+				// Run onUpdate hook.
+				p.onInputUpdate()
 				p.render(breakLineRenderEvent)
 				p.notifyRender()
 				stopReadBufCh <- struct{}{}
 				stopHandleSignalCh <- struct{}{}
+				return true
+			} else if e == nil {
+				continue
+			}
+
+			// Run onUpdate hook.
+			p.onInputUpdate()
+			updated = true
+
+			// Stop goroutine to run readBuffer function
+			stopReadBufCh <- struct{}{}
+			stopHandleSignalCh <- struct{}{}
+
+			// Unset raw mode
+			// Reset to Blocking mode because returned EAGAIN when still set non-blocking mode.
+			p.setBracketedPaste(false)
+			debug.AssertNoError(p.in.TearDown())
+
+			p.executor(e.input)
+			p.render(basicRenderEvent)
+			p.notifyRender()
+
+			if p.exitChecker != nil && p.exitChecker(e.input, true) {
+				p.skipTearDown = true
+				return true
+			}
+			// Set raw mode
+			debug.AssertNoError(p.in.Setup())
+			p.setBracketedPaste(true)
+			go p.readBuffer(bufCh, stopReadBufCh)
+			go p.handleSignals(exitCh, winSizeCh, stopHandleSignalCh)
+		}
+
+		if !updated {
+			// Run onUpdate hook.
+			p.onInputUpdate()
+			p.render(basicRenderEvent)
+			p.notifyRender()
+		}
+		return false
+	}
+
+	// The keys an Input call left.
+	if feedPending() {
+		return
+	}
+
+	for {
+		select {
+		case b := <-bufCh:
+			p.pending = append(p.pending, p.lexer.split(b, p.ASCIICodeBindings)...)
+			if feedPending() {
 				return
-			} else if e != nil {
-				// Stop goroutine to run readBuffer function
-				stopReadBufCh <- struct{}{}
-				stopHandleSignalCh <- struct{}{}
-
-				// Unset raw mode
-				// Reset to Blocking mode because returned EAGAIN when still set non-blocking mode.
-				debug.AssertNoError(p.in.TearDown())
-
-				p.executor(e.input)
-				p.render(basicRenderEvent)
-				p.notifyRender()
-
-				if p.exitChecker != nil && p.exitChecker(e.input, true) {
-					p.skipTearDown = true
-					return
-				}
-				// Set raw mode
-				debug.AssertNoError(p.in.Setup())
-				go p.readBuffer(bufCh, stopReadBufCh)
-				go p.handleSignals(exitCh, winSizeCh, stopHandleSignalCh)
-			} else {
-				p.render(basicRenderEvent)
-				p.notifyRender()
 			}
 		case w := <-winSizeCh:
 			p.onInputUpdate()
@@ -186,8 +227,37 @@ func (p *Prompt) Run() {
 	}
 }
 
+// feedNext feeds the first of the pending keys. The completion and the
+// history follow the input once a read is fed (onInputUpdate), not after
+// every key of it, the completer being possibly slow; so a key other than
+// text and Enter that follows other keys gets them updated first, unless
+// updated tells that they are.
+func (p *Prompt) feedNext(updated bool) (shouldExit bool, exec *Exec) {
+	token := p.pending[0]
+	p.pending = p.pending[1:]
+
+	if !updated && token.kind == keyToken {
+		switch GetKey(token.bytes) {
+		case Enter, ControlJ, ControlM:
+		default:
+			p.onInputUpdate()
+		}
+	}
+	return p.feedToken(token)
+}
+
+// feed feeds b as one key.
 func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
-	key := GetKey(b)
+	return p.feedToken(inputToken{kind: keyToken, bytes: b})
+}
+
+// feedToken feeds a key, or a run of text, to the prompt.
+func (p *Prompt) feedToken(token inputToken) (shouldExit bool, exec *Exec) {
+	b := token.bytes
+	key := NotDefined
+	if token.kind == keyToken {
+		key = GetKey(b)
+	}
 
 	p.buf.lastKeyStroke = key
 	// completion
@@ -196,6 +266,9 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 
 	switch key {
 	case Enter, ControlJ, ControlM:
+		// Tabs that came with the Enter, in a paste, are replaced as those
+		// typed before it are (onInputUpdate).
+		p.buf = p.buf.ReplaceTabs(defaultTabWidth)
 		execCmd := p.buf.Text()
 		if p.inReverseSearchMode() {
 			// Execute last matched command in case of enabled reverse search.
@@ -252,7 +325,7 @@ func (p *Prompt) feed(b []byte) (shouldExit bool, exec *Exec) {
 			p.enableReverseSearch()
 		}
 	case NotDefined:
-		if p.handleASCIICodeBinding(b) {
+		if token.kind == keyToken && p.handleASCIICodeBinding(b) {
 			return
 		}
 		p.buf.InsertText(string(b), false, true)
@@ -346,20 +419,43 @@ func (p *Prompt) Input() string {
 	stopReadBufCh := make(chan struct{})
 	go p.readBuffer(bufCh, stopReadBufCh)
 
-	for {
-		select {
-		case b := <-bufCh:
-			if shouldExit, e := p.feed(b); shouldExit {
+	// feedPending feeds the keys read up to an Enter, which the keys after
+	// it wait for the next call, and reports whether the input is done.
+	feedPending := func() (string, bool) {
+		updated := true
+		for len(p.pending) > 0 {
+			shouldExit, e := p.feedNext(updated)
+			updated = false
+
+			if shouldExit {
 				p.render(breakLineRenderEvent)
 				stopReadBufCh <- struct{}{}
-				return ""
+				return "", true
 			} else if e != nil {
 				// Stop goroutine to run readBuffer function
 				stopReadBufCh <- struct{}{}
-				return e.input
-			} else {
-				p.onInputUpdate()
-				p.render(basicRenderEvent)
+				return e.input, true
+			}
+		}
+
+		if !updated {
+			p.onInputUpdate()
+			p.render(basicRenderEvent)
+		}
+		return "", false
+	}
+
+	// The keys the last call left.
+	if input, done := feedPending(); done {
+		return input
+	}
+
+	for {
+		select {
+		case b := <-bufCh:
+			p.pending = append(p.pending, p.lexer.split(b, p.ASCIICodeBindings)...)
+			if input, done := feedPending(); done {
+				return input
 			}
 		default:
 			time.Sleep(10 * time.Millisecond)
@@ -387,14 +483,32 @@ func (p *Prompt) setUp() {
 	debug.AssertNoError(p.in.Setup())
 	p.renderer.Setup(p.title)
 	p.renderer.UpdateWinSize(p.in.GetWinSize())
+	p.setBracketedPaste(true)
 }
 
 // tearDown restores the terminal state when prompt is turned off.
 func (p *Prompt) tearDown() {
 	if !p.skipTearDown {
+		p.setBracketedPaste(false)
 		debug.AssertNoError(p.in.TearDown())
 	}
 	p.renderer.TearDown()
+}
+
+// setBracketedPaste turns the bracketed paste mode of the terminal on or
+// off, if the mode is enabled (OptionBracketedPaste). It is on while the
+// prompt reads, and off while a command runs, so that neither the command
+// nor what runs after the prompt gets pastes marked.
+func (p *Prompt) setBracketedPaste(on bool) {
+	if !p.isBracketedPasteEnabled {
+		return
+	}
+	if on {
+		p.renderer.out.WriteRawStr("\x1b[?2004h")
+	} else {
+		p.renderer.out.WriteRawStr("\x1b[?2004l")
+	}
+	debug.AssertNoError(p.renderer.out.Flush())
 }
 
 // getCmdToRender builds command to render.
