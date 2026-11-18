@@ -36,7 +36,7 @@
 
 - cmd: [C-r, a]
   pane: |
-    (reverse-i-search)`a':aba
+    (reverse-i-search)`a': aba
 
 - cmd: [Enter]
   pane: |
@@ -52,14 +52,14 @@
 
 - cmd: [C-r, pri]
   pane: |
-    (reverse-i-search)`pri':if some then
+    (reverse-i-search)`pri': if some then
     print(три)
     else
     print(четыре)
 
 - cmd: [C-r]
   pane: |
-    (reverse-i-search)`pri':if some then
+    (reverse-i-search)`pri': if some then
     print(один)
 
 - cmd: [Enter]
