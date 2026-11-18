@@ -216,22 +216,22 @@ prompt_app>"""
 @pytest.mark.parametrize("prompt", [{"args": [HISTORY_ARG]}], indirect=True)
 def test_reverse_search(prompt, keys):
     prompt.send_keys(["Some-текст", keys["C-r"]])
-    expected = """(reverse-i-search)`':Some-текст"""
+    expected = """(reverse-i-search)`': Some-текст"""
     assert prompt.dump_workspace() == expected
 
     prompt.send_keys(["print("])
-    expected = """(reverse-i-search)`print(':if a then
+    expected = """(reverse-i-search)`print(': if a then
  print(x)
 else
 print(y)"""
     assert prompt.dump_workspace() == expected
 
     prompt.send_keys(keys["C-r"])
-    expected = """(reverse-i-search)`print(':print(D)"""
+    expected = """(reverse-i-search)`print(': print(D)"""
     assert prompt.dump_workspace() == expected
 
     prompt.send_keys(keys["C-r"])
-    expected = """(reverse-i-search)`print(':print(C)"""
+    expected = """(reverse-i-search)`print(': print(C)"""
     assert prompt.dump_workspace() == expected
 
     prompt.send_keys(keys["Left"])
