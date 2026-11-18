@@ -21,9 +21,10 @@ runs:
         shell: bash
 
       - name: Go Linter
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v9
         with:
-          args: --config=golangci-lint.yml --out-${NO_FUTURE}format colored-line-number
+          version: v2.15.0
+          args: --config=golangci-lint.yml
           skip-cache: true
 
       - name: Python Linter
